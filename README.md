@@ -170,5 +170,5 @@ MIT License — see [LICENSE](./LICENSE) for details.
 ---
 
 <p align="center">
-  Made with ❤️ by <a href="https://github.com/your-username">Your Name</a>
+  Made with ❤️ by <a href="https://github.com/vndangkhoa">vndangkhoa</a>
 </p>
