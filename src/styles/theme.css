@@ -1,0 +1,186 @@
+:root {
+    /* --- Light Theme (Default) --- */
+    --theme-mode: light;
+
+    /* Backgrounds */
+    --bg-void: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-panel: #ffffff;
+    --bg-elevated: #ffffff;
+
+    /* Text */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
+    --text-muted: #cbd5e1;
+
+    /* Glass Effects */
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-blur: blur(24px);
+    --glass-saturate: saturate(150%);
+
+    /* Brand Colors */
+    --brand-blue: #2563eb;
+    --brand-indigo: #4f46e5;
+    --brand-purple: #7c3aed;
+
+    /* Semantic Colors */
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --info: #3b82f6;
+
+    /* Void Scale (Light) */
+    --void-950: #f8fafc;
+    --void-900: #f1f5f9;
+    --void-800: #e2e8f0;
+    --void-700: #cbd5e1;
+
+    /* Interactions */
+    --interactive-hover: rgba(0, 0, 0, 0.05);
+    --interactive-active: rgba(0, 0, 0, 0.08);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-cinematic: 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark {
+    /* --- Dark Theme (The Void) --- */
+    --theme-mode: dark;
+
+    /* Backgrounds */
+    --bg-void: #020617;
+    --bg-surface: #0f172a;
+    --bg-panel: #1e293b;
+    --bg-elevated: #334155;
+
+    /* Text */
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+    --text-muted: #475569;
+
+    /* Glass Effects */
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-blur: blur(32px);
+    --glass-saturate: saturate(180%);
+
+    /* Brand Colors (Brighter for dark mode) */
+    --brand-blue: #3b82f6;
+    --brand-indigo: #6366f1;
+    --brand-purple: #8b5cf6;
+
+    /* Void Scale (Dark) */
+    --void-950: #020617;
+    /* Deepest Void */
+    --void-900: #0f172a;
+    /* Card Shadow Space */
+    --void-800: #1e293b;
+    /* Border Highlighting */
+    --void-700: #334155;
+    /* Elevated Elements */
+
+    /* Interactions */
+    --interactive-hover: rgba(255, 255, 255, 0.05);
+    --interactive-active: rgba(255, 255, 255, 0.08);
+
+    /* Shadows (More dramatic in dark mode) */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* ============================================
+   Global Transitions & Animations
+   ============================================ */
+
+* {
+    transition-property: background-color, border-color, color, opacity;
+    transition-duration: var(--transition-fast);
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Disable transitions for elements that shouldn't animate */
+.no-transition,
+.react-flow__node,
+.react-flow__edge {
+    transition: none !important;
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.bg-void {
+    background-color: var(--bg-void);
+}
+
+.bg-surface {
+    background-color: var(--bg-surface);
+}
+
+.bg-panel {
+    background-color: var(--bg-panel);
+}
+
+.text-primary {
+    color: var(--text-primary);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+.text-tertiary {
+    color: var(--text-tertiary);
+}
+
+/* ============================================
+   Node Highlight Animation
+   ============================================ */
+
+@keyframes node-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+    }
+}
+
+.node-highlight {
+    animation: node-pulse 1.5s ease-in-out infinite;
+}
+
+/* ============================================
+   Fade In Animation
+   ============================================ */
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+}

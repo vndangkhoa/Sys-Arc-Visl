@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  webapp:
+    build: .
+    container_name: kv-graph-web
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-service
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    # NVIDIA GPU Support Configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    # Fallback for systems without 'deploy' support (older compose versions) or explicit runtime
+    # runtime: nvidia 
