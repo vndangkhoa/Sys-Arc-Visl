@@ -16,11 +16,14 @@ export class WebLlmService {
     private isReady = false;
 
     // Track GPU Availability
-    public static async isSystemSupported(): Promise<boolean> {
+    public static async isSystemSupported(): Promise<boolean | null> {
+        // @ts-ignore
         if (!navigator.gpu) {
-            return false;
+            console.warn('WebGPU not supported in this environment');
+            return null;
         }
         try {
+            // @ts-ignore
             const adapter = await navigator.gpu.requestAdapter();
             return !!adapter;
         } catch (e) {

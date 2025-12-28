@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useDiagramStore } from '../store';
 import { useSettingsStore } from '../store/settingsStore';
-import { VisualOrganizer, createVisualOrganizer } from '../lib/visualOrganizer';
+import { createVisualOrganizer } from '../lib/visualOrganizer';
 import { analyzeVisualLayout } from '../lib/aiService';
 import type { LayoutSuggestion, VisualIssue, LayoutMetrics } from '../types/visualOrganization';
 

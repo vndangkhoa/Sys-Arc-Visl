@@ -11,7 +11,7 @@ mermaid.initialize({
 interface ParsedNode {
     id: string;
     label: string;
-    type: 'start' | 'end' | 'default' | 'decision' | 'process' | 'database' | 'group' | 'client' | 'server';
+    type: 'start' | 'end' | 'default' | 'decision' | 'process' | 'database' | 'group' | 'client' | 'server' | 'ai' | 'team' | 'platform' | 'data' | 'tech' | 'custom-shape';
     parentId?: string;
 }
 
@@ -36,10 +36,44 @@ function isDecisionLabel(label: string): boolean {
 }
 
 /**
+ * Parse metadata from Mermaid comments
+ * Format: %% { "id": "nodeId", "metadata": { ... } }
+ */
+function parseMetadataComments(code: string): Map<string, any> {
+    const metadataMap = new Map<string, any>();
+
+    // Regex matches lines starting with %% followed by JSON object
+    const lines = code.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('%%')) {
+            try {
+                // Extract potential JSON
+                const jsonStr = trimmed.substring(2).trim();
+                // Basic check if it looks like JSON object
+                if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
+                    const data = JSON.parse(jsonStr);
+                    if (data.id && data.metadata) {
+                        metadataMap.set(data.id, data.metadata);
+                    }
+                }
+            } catch (e) {
+                // Ignore incomplete/invalid JSON in comments
+            }
+        }
+    }
+
+    return metadataMap;
+}
+
+/**
  * Preprocess mermaid code to handle common issues
  */
 function preprocessMermaidCode(code: string): string {
-    return code
+    let cleaned = code
+        // Strip markdown code fence wrappers (```mermaid ... ```)
+        .replace(/^```(?:mermaid)?\s*\n?/im, '')
+        .replace(/\n?```\s*$/im, '')
         // Remove %%{init:...}%% directives that may cause issues
         .replace(/%%\{init:[^}]*\}%%/g, '')
         // Convert <br/>, <br>, <br /> to spaces in node labels
@@ -48,6 +82,8 @@ function preprocessMermaidCode(code: string): string {
         .replace(/\r\n/g, '\n')
         // Remove empty lines at start
         .trim();
+
+    return cleaned;
 }
 
 export async function parseMermaid(mermaidCode: string): Promise<{ nodes: Node[]; edges: Edge[] }> {
@@ -80,17 +116,32 @@ export async function parseMermaid(mermaidCode: string): Promise<{ nodes: Node[]
 
         // Create Group Nodes first
         for (const sub of subgraphs) {
+            const groupTitle = (sub.title || sub.id).toLowerCase();
+            let category = 'filter-other';
+
+            if (groupTitle.includes('client') || groupTitle.includes('frontend') || groupTitle.includes('ui') || groupTitle.includes('mobile') || groupTitle.includes('web')) {
+                category = 'filter-client';
+            } else if (groupTitle.includes('server') || groupTitle.includes('backend') || groupTitle.includes('api') || groupTitle.includes('service') || groupTitle.includes('auth') || groupTitle.includes('handler') || groupTitle.includes('worker')) {
+                category = 'filter-server';
+            } else if (groupTitle.includes('database') || groupTitle.includes('db') || groupTitle.includes('store') || groupTitle.includes('cache') || groupTitle.includes('redis')) {
+                category = 'filter-db';
+            }
+
             nodes.push({
                 id: sub.id,
                 type: 'group',
                 position: { x: 0, y: 0 },
                 data: {
                     label: sub.title,
-                    color: groupColors[groupIndex++ % groupColors.length]
+                    color: groupColors[groupIndex++ % groupColors.length],
+                    category
                 },
                 style: {},
             });
         }
+
+        // Match metadata to nodes
+        const metadataMap = parseMetadataComments(cleanedCode);
 
         // Process Nodes and Groups logic combined
         for (const [id, vertex] of Object.entries(vertices) as any[]) {
@@ -124,16 +175,77 @@ export async function parseMermaid(mermaidCode: string): Promise<{ nodes: Node[]
                 }
             }
 
-            // Determine category for filtering
-            let category = 'filter-server';
-            if (type === 'database') category = 'filter-db';
-            else if (type === 'client') category = 'filter-client';
+            // Determine category for filtering - Enhanced Logic
+            let category = 'filter-other'; // Default to other/flow
+
+            // 1. Try to infer from Parent Subgraph Title/ID first (High Priority)
+            if (parentId) {
+                const parentGroup = nodes.find(n => n.id === parentId);
+                if (parentGroup) {
+                    // Check both label and ID for clues
+                    const groupLabel = (parentGroup.data?.label as string || '').toLowerCase();
+                    const groupTitle = groupLabel || parentGroup.id.toLowerCase();
+
+                    if (groupTitle.includes('client') || groupTitle.includes('frontend') || groupTitle.includes('ui') || groupTitle.includes('mobile') || groupTitle.includes('web')) {
+                        category = 'filter-client';
+                        // Also upgrade node type if generic
+                        if (type === 'default') type = 'client';
+                    } else if (groupTitle.includes('server') || groupTitle.includes('backend') || groupTitle.includes('api') || groupTitle.includes('service') || groupTitle.includes('auth') || groupTitle.includes('handler') || groupTitle.includes('worker')) {
+                        category = 'filter-server';
+                        if (type === 'default') type = 'server';
+                    } else if (groupTitle.includes('database') || groupTitle.includes('db') || groupTitle.includes('store') || groupTitle.includes('cache') || groupTitle.includes('redis')) {
+                        category = 'filter-db';
+                        if (type === 'default' || type === 'database') type = 'database';
+                    }
+                }
+            }
+
+            // 2. If no parent group match (or no parent), use Node Type/Label
+            if (category === 'filter-other') {
+                if (type === 'database') category = 'filter-db';
+                else if (type === 'client') category = 'filter-client';
+                else if (type === 'server') category = 'filter-server';
+                // Heuristics from label if still default
+                else if (label.toLowerCase().includes('gateway')) {
+                    category = 'filter-server';
+                    if (type === 'default') type = 'server';
+                }
+            }
+
+            // 3. Final Fallback: If type is still default but category is specific, sync them
+            if (type === 'default') {
+                if (category === 'filter-server') type = 'server';
+                else if (category === 'filter-client') type = 'client';
+                else if (category === 'filter-db') type = 'database';
+
+                // Check for specialized types based on label keywords (matching CustomNodes.tsx logic)
+                const l = label.toLowerCase();
+                if (l.includes('ai') || l.includes('director') || l.includes('agent') || l.includes('generate')) type = 'ai';
+                else if (l.includes('team') || l.includes('human') || l.includes('review')) type = 'team';
+                else if (l.includes('platform') || l.includes('youtube') || l.includes('tiktok') || l.includes('shop')) type = 'platform';
+                else if (l.includes('data') || l.includes('analytics') || l.includes('metric')) type = 'data';
+                else if (l.includes('tech') || l.includes('infra')) type = 'tech';
+
+                // Check if it's a specific shape supported by ShapeNode
+                const supportedShapes = ['rect', 'rounded', 'stadium', 'subroutine', 'cyl', 'cylinder', 'diamond', 'rhombus', 'hexagon', 'parallelogram', 'trapezoid', 'doc', 'document', 'cloud', 'circle', 'doublecircle'];
+                if (supportedShapes.includes(vertex.type || '')) {
+                    type = 'custom-shape';
+                }
+            }
+
+            // Merge metadata if available
+            const nodeMetadata = metadataMap.get(id);
 
             nodes.push({
                 id: id,
-                type: type,
+                type: type, // We might want to use a generic 'custom-shape' type for explicit shapes later, but for now we keep the semantic type inference or fallback
                 position: { x: 0, y: 0 },
-                data: { label, category },  // Use sanitized label
+                data: {
+                    label,
+                    category,
+                    shape: vertex.type, // Pass the raw mermaid shape type
+                    metadata: nodeMetadata // Attach parsed metadata
+                },
                 parentId: parentId,
                 extent: parentId ? 'parent' : undefined
             });
@@ -149,6 +261,7 @@ export async function parseMermaid(mermaidCode: string): Promise<{ nodes: Node[]
                 animated: e.stroke === 'dotted', // Heuristic
                 style: {
                     strokeWidth: 2,
+                    strokeOpacity: 0.5,
                     strokeDasharray: e.stroke === 'dotted' ? '5,5' : undefined
                 },
                 labelStyle: { fill: '#374151', fontWeight: 600, fontSize: 11 },
@@ -326,7 +439,10 @@ function parseMermaidRegex(mermaidCode: string): { nodes: Node[]; edges: Edge[] 
         target: e.target,
         label: e.label,
         animated: e.dotted,
-        style: e.dotted ? { strokeDasharray: '5,5' } : undefined
+        style: {
+            strokeDasharray: e.dotted ? '5,5' : undefined,
+            strokeOpacity: 0.5
+        }
     }));
 
     console.log(`[MermaidParser] Regex fallback: ${nodes.length} nodes, ${edges.length} edges`);

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useFlowStore } from '../store';
 import { analyzeImage, analyzeSVG } from '../lib/aiService';
 import { parseMermaid } from '../lib/mermaidParser';
@@ -10,6 +10,7 @@ export function ImageUpload() {
     const [isDragging, setIsDragging] = useState(false);
     const [fileType, setFileType] = useState<'image' | 'svg' | null>(null);
     const [svgContent, setSvgContent] = useState<string>('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const {
         setNodes, setEdges, setLoading, setError, setSourceCode, isLoading,
@@ -65,10 +66,26 @@ export function ImageUpload() {
     }, [handleFile]);
 
     const handleGenerate = useCallback(async () => {
-        if (aiMode === 'offline' && !ollamaUrl) {
-            setError('Please configure Ollama URL in settings');
+        // Validate AI configuration before processing
+        if (aiMode === 'offline') {
+            if (!ollamaUrl) {
+                setError('Please configure Ollama URL in Settings → Local mode');
+                return;
+            }
+        } else if (aiMode === 'online') {
+            if (onlineProvider !== 'ollama-cloud' && !apiKey) {
+                setError(`Please enter your ${onlineProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'} API key in Settings → Cloud mode`);
+                return;
+            }
+            if (onlineProvider === 'ollama-cloud' && !ollamaUrl) {
+                setError('Please configure the Remote Ollama endpoint in Settings → Cloud mode');
+                return;
+            }
+        } else if (aiMode === 'browser') {
+            setError('Browser mode does not support image analysis yet. Please use Cloud mode with an API key in Settings.');
             return;
         }
+
         setLoading(true);
         setError(null);
 
@@ -81,8 +98,7 @@ export function ImageUpload() {
                     modelName,
                     aiMode,
                     onlineProvider,
-                    apiKey,
-                    generationComplexity
+                    apiKey
                 );
             } else if (preview) {
                 result = await analyzeImage(
@@ -130,7 +146,7 @@ export function ImageUpload() {
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onClick={() => !preview && document.getElementById('image-input')?.click()}
+                onClick={() => !preview && fileInputRef.current?.click()}
                 className={`flex-1 relative rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all border border-dashed
                     ${isDragging
                         ? 'bg-blue-500/10 border-blue-500/50 scale-[1.01]'
@@ -138,7 +154,7 @@ export function ImageUpload() {
                     }`}
             >
                 <input
-                    id="image-input"
+                    ref={fileInputRef}
                     type="file"
                     accept=".jpg,.jpeg,.png,.webp,.svg"
                     onChange={handleFileInput}

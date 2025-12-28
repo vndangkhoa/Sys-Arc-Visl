@@ -1,22 +1,28 @@
 import dagre from 'dagre';
 import { type Node, type Edge } from '../store';
 
-const nodeWidth = 180;
-const nodeHeight = 60;
-const groupPadding = 40;
-const groupTitleHeight = 50;
-const groupGap = 60; // Gap between swimlane groups
+// Enhanced constants for better spacing
+const NODE_WIDTH = 180;
+const NODE_HEIGHT = 60;
+const GROUP_PADDING = 60;  // Increased padding
+const GROUP_TITLE_HEIGHT = 50;
+const GROUP_GAP = 120;  // Increased gap between groups
+const MIN_NODE_SPACING = 80;  // Minimum space between nodes
 
 export interface LayoutOptions {
     direction: 'TB' | 'LR' | 'BT' | 'RL';
     nodeSpacing: number;
     rankSpacing: number;
+    smartOverlapResolution?: boolean;  // Enable collision detection
+    optimizeForReadability?: boolean;  // Prioritize clear flow
 }
 
 const defaultOptions: LayoutOptions = {
     direction: 'TB',
-    nodeSpacing: 40,
-    rankSpacing: 60,
+    nodeSpacing: 100,  // Increased from 60 to prevent overlap
+    rankSpacing: 150,  // Increased from 80 for edge labels
+    smartOverlapResolution: true,
+    optimizeForReadability: true,
 };
 
 export function getLayoutedElements(
@@ -85,7 +91,7 @@ export function getLayoutedElements(
         childNodes.forEach(child => finalNodes.push(child));
 
         // Move Y down for next group
-        currentY += height + groupGap;
+        currentY += height + GROUP_GAP;
     });
 
     // Layout orphan nodes (nodes without parent) to the right of groups
@@ -130,8 +136,8 @@ function layoutGroupInternal(
 
     // Add nodes
     childNodes.forEach(node => {
-        const w = node.type === 'decision' ? 140 : nodeWidth;
-        const h = node.type === 'decision' ? 90 : nodeHeight;
+        const w = node.type === 'decision' ? 140 : NODE_WIDTH;
+        const h = node.type === 'decision' ? 90 : NODE_HEIGHT;
         subGraph.setNode(node.id, { width: w, height: h });
     });
 
@@ -154,8 +160,8 @@ function layoutGroupInternal(
         const pos = subGraph.node(node.id);
         if (!pos) return;
 
-        const w = node.type === 'decision' ? 140 : nodeWidth;
-        const h = node.type === 'decision' ? 90 : nodeHeight;
+        const w = node.type === 'decision' ? 140 : NODE_WIDTH;
+        const h = node.type === 'decision' ? 90 : NODE_HEIGHT;
         const x = pos.x - w / 2;
         const y = pos.y - h / 2;
 
@@ -175,14 +181,14 @@ function layoutGroupInternal(
 
     // Normalize positions to start at padding
     positionedChildren.forEach(child => {
-        child.position.x = child.position.x - minX + groupPadding;
-        child.position.y = child.position.y - minY + groupPadding + groupTitleHeight;
+        child.position.x = child.position.x - minX + GROUP_PADDING;
+        child.position.y = child.position.y - minY + GROUP_PADDING + GROUP_TITLE_HEIGHT;
     });
 
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
-    const groupWidth = contentWidth + groupPadding * 2;
-    const groupHeight = contentHeight + groupPadding * 2 + groupTitleHeight;
+    const groupWidth = contentWidth + GROUP_PADDING * 2;
+    const groupHeight = contentHeight + GROUP_PADDING * 2 + GROUP_TITLE_HEIGHT;
 
     return {
         width: Math.max(groupWidth, 300),
@@ -211,8 +217,8 @@ function layoutOrphanNodes(
     });
 
     nodes.forEach(node => {
-        const w = node.type === 'decision' ? 140 : nodeWidth;
-        const h = node.type === 'decision' ? 90 : nodeHeight;
+        const w = node.type === 'decision' ? 140 : NODE_WIDTH;
+        const h = node.type === 'decision' ? 90 : NODE_HEIGHT;
         orphanGraph.setNode(node.id, { width: w, height: h });
     });
 
@@ -231,8 +237,8 @@ function layoutOrphanNodes(
         const pos = orphanGraph.node(node.id);
         if (!pos) return node;
 
-        const w = node.type === 'decision' ? 140 : nodeWidth;
-        const h = node.type === 'decision' ? 90 : nodeHeight;
+        const w = node.type === 'decision' ? 140 : NODE_WIDTH;
+        const h = node.type === 'decision' ? 90 : NODE_HEIGHT;
 
         return {
             ...node,
@@ -261,8 +267,8 @@ function layoutFlatNodes(
     });
 
     nodes.forEach(node => {
-        const w = node.type === 'decision' ? 140 : nodeWidth;
-        const h = node.type === 'decision' ? 90 : nodeHeight;
+        const w = node.type === 'decision' ? 140 : NODE_WIDTH;
+        const h = node.type === 'decision' ? 90 : NODE_HEIGHT;
         flatGraph.setNode(node.id, { width: w, height: h });
     });
 
@@ -278,8 +284,8 @@ function layoutFlatNodes(
         const pos = flatGraph.node(node.id);
         if (!pos) return node;
 
-        const w = node.type === 'decision' ? 140 : nodeWidth;
-        const h = node.type === 'decision' ? 90 : nodeHeight;
+        const w = node.type === 'decision' ? 140 : NODE_WIDTH;
+        const h = node.type === 'decision' ? 90 : NODE_HEIGHT;
 
         return {
             ...node,
@@ -289,5 +295,130 @@ function layoutFlatNodes(
         } as Node;
     });
 
-    return { nodes: layoutedNodes, edges };
+    // Apply smart overlap resolution if enabled
+    const resolvedNodes = opts.smartOverlapResolution
+        ? resolveOverlaps(layoutedNodes)
+        : layoutedNodes;
+
+    return { nodes: resolvedNodes, edges };
 }
+
+/**
+ * Smart collision resolution - iteratively pushes overlapping nodes apart
+ * Uses a force-directed approach with multiple passes for stability
+ */
+function resolveOverlaps(nodes: Node[], maxIterations: number = 50): Node[] {
+    const mutableNodes = nodes.map(n => ({
+        ...n,
+        position: { ...n.position },
+        width: getNodeWidth(n),
+        height: getNodeHeight(n)
+    }));
+
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+        let hasOverlap = false;
+
+        for (let i = 0; i < mutableNodes.length; i++) {
+            for (let j = i + 1; j < mutableNodes.length; j++) {
+                const nodeA = mutableNodes[i];
+                const nodeB = mutableNodes[j];
+
+                // Skip group nodes
+                if (nodeA.type === 'group' || nodeB.type === 'group') continue;
+
+                // Check for overlap with padding
+                const overlapX = getOverlap(
+                    nodeA.position.x, nodeA.width,
+                    nodeB.position.x, nodeB.width,
+                    MIN_NODE_SPACING
+                );
+
+                const overlapY = getOverlap(
+                    nodeA.position.y, nodeA.height,
+                    nodeB.position.y, nodeB.height,
+                    MIN_NODE_SPACING
+                );
+
+                // If nodes overlap in both axes, push them apart
+                if (overlapX > 0 && overlapY > 0) {
+                    hasOverlap = true;
+
+                    // Determine which axis needs less push (more efficient separation)
+                    if (overlapX < overlapY) {
+                        // Push horizontally
+                        const pushX = overlapX / 2 + 5;
+                        if (nodeA.position.x < nodeB.position.x) {
+                            nodeA.position.x -= pushX;
+                            nodeB.position.x += pushX;
+                        } else {
+                            nodeA.position.x += pushX;
+                            nodeB.position.x -= pushX;
+                        }
+                    } else {
+                        // Push vertically
+                        const pushY = overlapY / 2 + 5;
+                        if (nodeA.position.y < nodeB.position.y) {
+                            nodeA.position.y -= pushY;
+                            nodeB.position.y += pushY;
+                        } else {
+                            nodeA.position.y += pushY;
+                            nodeB.position.y -= pushY;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If no overlaps detected, we're done
+        if (!hasOverlap) break;
+    }
+
+    // Ensure no negative positions (shift everything if needed)
+    let minX = Infinity, minY = Infinity;
+    mutableNodes.forEach(n => {
+        if (n.type !== 'group') {
+            minX = Math.min(minX, n.position.x);
+            minY = Math.min(minY, n.position.y);
+        }
+    });
+
+    const offsetX = minX < 60 ? 60 - minX : 0;
+    const offsetY = minY < 60 ? 60 - minY : 0;
+
+    return mutableNodes.map(n => ({
+        ...n,
+        position: {
+            x: n.position.x + offsetX,
+            y: n.position.y + offsetY
+        }
+    }));
+}
+
+/**
+ * Calculate overlap between two rectangles with padding
+ */
+function getOverlap(pos1: number, size1: number, pos2: number, size2: number, padding: number): number {
+    const end1 = pos1 + size1 + padding;
+    const end2 = pos2 + size2 + padding;
+
+    return Math.min(end1 - pos2, end2 - pos1);
+}
+
+/**
+ * Get node width based on type
+ */
+function getNodeWidth(node: Node): number {
+    if (node.type === 'decision') return 140;
+    if (node.style?.width && typeof node.style.width === 'number') return node.style.width;
+    return NODE_WIDTH;
+}
+
+/**
+ * Get node height based on type
+ */
+function getNodeHeight(node: Node): number {
+    if (node.type === 'decision') return 90;
+    if (node.style?.height && typeof node.style.height === 'number') return node.style.height;
+    return NODE_HEIGHT;
+}
+

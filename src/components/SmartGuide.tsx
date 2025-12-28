@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Lightbulb, MousePointer2, Keyboard, Layout } from 'lucide-react';
 
 const TIPS = [

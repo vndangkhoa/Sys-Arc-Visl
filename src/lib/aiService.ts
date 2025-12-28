@@ -14,40 +14,13 @@ export interface AIResponse {
 
 import { webLlmService } from './webLlmService';
 import { visionService } from './visionService';
-
-const SYSTEM_PROMPT = `You are an expert System Architect AI. Your task is to transform technical descriptions into precise Mermaid.js diagrams and high-fidelity metadata.
-
-Return ONLY a strictly valid JSON object. No Markdown headers, no preamble.
-
-EXPECTED JSON FORMAT:
-{
-  "mermaidCode": "flowchart TD\\n  A[Client] --> B[API Server]\\n  ...",
-  "metadata": {
-    "NodeLabel": { 
-      "techStack": ["Technologies used"], 
-      "role": "Specific role (e.g., Load Balancer, Cache, Database)", 
-      "description": "Concise technical responsibility" 
-    }
-  }
-}
-
-ARCHITECTURAL RULES:
-1. Use 'flowchart TD' or 'flowchart LR'.
-2. Use descriptive but concise ID/Labels (e.g., 'API', 'DB_PROD').
-3. Labels must match the keys in the 'metadata' object EXACTLY.
-4. If input is already Mermaid code, wrap it in the JSON 'mermaidCode' field and infer metadata.
-5. Identify semantic roles: use keywords like 'Client', 'Server', 'Worker', 'Database', 'Queue' in labels.
-6. Escape double quotes inside the mermaid string correctly.
-
-DIAGRAM QUALITY RULES:
-7. NEVER use HTML tags (like <br/>, <b>, etc.) in node labels. Use short, clean text only.
-8. Use DIAMOND shapes {Decision} for review, approval, or decision steps (e.g., A{Approve?}).
-9. Use CYLINDER shapes [(Database)] for data stores.
-10. Use ROUNDED shapes (Process) for human/manual tasks.
-11. For complex workflows, add step numbers as edge labels: A -->|1| B -->|2| C.
-12. Include feedback loops where logical (e.g., connect "Collect Feedback" back to analysis nodes).
-13. Use subgraphs/swimlanes to group related components by team, role, or domain.
-14. Ensure consistent node shapes within each swimlane/subgraph.`;
+import {
+    SYSTEM_PROMPT,
+    SYSTEM_PROMPT_SIMPLE,
+    SYSTEM_PROMPT_COMPLEX,
+    SUGGEST_PROMPT,
+    VISUAL_ANALYSIS_PROMPT
+} from './prompts';
 
 
 /**
@@ -92,20 +65,54 @@ async function callOnlineAI(
         if (provider === 'openai') {
             url = 'https://api.openai.com/v1/chat/completions';
             headers['Authorization'] = `Bearer ${apiKey}`;
+
+            // Transform messages to OpenAI format with image support
+            const formattedMessages = messages.map(msg => {
+                if (msg.images && msg.images.length > 0) {
+                    // Vision message with image
+                    return {
+                        role: msg.role,
+                        content: [
+                            { type: 'text', text: msg.content },
+                            ...msg.images.map((img: string) => ({
+                                type: 'image_url',
+                                image_url: { url: `data:image/png;base64,${img}` }
+                            }))
+                        ]
+                    };
+                }
+                return { role: msg.role, content: msg.content };
+            });
+
             body = {
                 model: 'gpt-4o',
-                messages: [{ role: 'system', content: activePrompt }, ...messages],
+                messages: [{ role: 'system', content: activePrompt }, ...formattedMessages],
                 response_format: { type: 'json_object' }
             };
         } else if (provider === 'gemini') {
-            // Simple Gemini API call (v1beta)
-            url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            // Gemini API with vision support - using gemini-2.0-flash-exp for better compatibility
+            url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+
+            // Build parts array - text first, then images
+            const parts: any[] = [
+                { text: `${activePrompt}\n\nTask: ${messages[messages.length - 1].content}` }
+            ];
+
+            // Add images if present
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg.images && lastMsg.images.length > 0) {
+                lastMsg.images.forEach((imageBase64: string) => {
+                    parts.push({
+                        inline_data: {
+                            mime_type: 'image/png',
+                            data: imageBase64
+                        }
+                    });
+                });
+            }
+
             body = {
-                contents: [{
-                    parts: [{
-                        text: `${activePrompt}\n\nTask: ${messages[messages.length - 1].content}`
-                    }]
-                }],
+                contents: [{ parts }],
                 generationConfig: { responseMimeType: 'application/json' }
             };
         } else if (provider === 'ollama-cloud') {
@@ -127,7 +134,14 @@ async function callOnlineAI(
         if (!response.ok) {
             let errorMsg = `${provider} error: ${response.status} ${response.statusText}`;
             if (response.status === 401) errorMsg = 'Invalid API Key. Please check your settings.';
+            if (response.status === 404) errorMsg = `API endpoint not found. For ${provider}, please verify your API key is valid.`;
             if (response.status === 429) errorMsg = 'Rate limit exceeded. Please try again later.';
+            if (response.status === 400) {
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error?.message || errorMsg;
+                } catch { /* ignore parse error */ }
+            }
             throw new Error(errorMsg);
         }
 
@@ -292,22 +306,6 @@ async function callBrowserAI(
     }
 }
 
-const SYSTEM_PROMPT_SIMPLE = `You are a System Architect. Create a SIMPLE, high-level Mermaid diagram.
-- Focus on the main data flow (max 5-7 nodes).
-- Use simple labels (e.g., "User", "API", "DB"). NEVER use HTML tags like <br/>.
-- Use diamond {Decision?} for approval/review steps.
-- Minimal metadata (role only).`;
-
-const SYSTEM_PROMPT_COMPLEX = `You are an Expert Solution Architect. Create a DETAILED, comprehensive Mermaid diagram.
-- Include all subsystems, queues, workers, and external services.
-- Use swimlanes (subgraphs) to group components by role/domain.
-- NEVER use HTML tags like <br/> in labels. Keep labels clean and concise.
-- Use diamond {Decision?} for approval/review steps.
-- Use cylinder [(DB)] for databases, rounded (Task) for human tasks.
-- Add step numbers as edge labels for complex flows: A -->|1| B -->|2| C.
-- Include feedback loops connecting outputs back to inputs where logical.
-- Detailed metadata (techStack, role, description).`;
-
 function getSystemPrompt(complexity: 'simple' | 'complex') {
     return complexity === 'simple' ? SYSTEM_PROMPT_SIMPLE : SYSTEM_PROMPT_COMPLEX;
 }
@@ -385,74 +383,6 @@ export async function analyzeSVG(
     }
     return callLocalAI(ollamaUrl, model, messages);
 }
-
-const SUGGEST_PROMPT = `You are a Mermaid.js syntax and logic expert. 
-Your task is to analyze the provided Mermaid flowchart code and either:
-1. Fix any syntax errors that prevent it from rendering.
-2. Improve the logical flow or visual clarity if the syntax is already correct.
-
-Return ONLY a strictly valid JSON object. No Markdown headers, no preamble.
-
-EXPECTED JSON FORMAT:
-{
-  "mermaidCode": "flowchart TD\\n  A[Fixed/Improved] --> B[Nodes]",
-  "explanation": "Briefly explain what was fixed or improved."
-}
-
-RULES:
-- Maintain the original intent of the diagram.
-- Use best practices for Mermaid layout and labeling.
-- If the code is already perfect, return it as is but provide a positive explanation.`;
-
-const VISUAL_ANALYSIS_PROMPT = `You are a Visualization and UX Expert specialized in node-graph diagrams.
-Your task is to analyze the provided graph structure and metrics to suggest specific improvements for layout, grouping, and visual clarity.
-
-Return ONLY a strictly valid JSON object. Do not include markdown formatting like \`\`\`json.
-
-EXPECTED JSON FORMAT:
-{
-  "analysis": {
-    "suggestions": [
-      {
-        "id": "unique-id",
-        "title": "Short title",
-        "description": "Detailed explanation",
-        "type": "spacing" | "grouping" | "routing" | "hierarchy" | "style",
-        "impact": "high" | "medium" | "low",
-        "fix_strategy": "algorithmic_spacing" | "algorithmic_routing" | "group_nodes" | "unknown"
-      }
-    ],
-    "summary": {
-       "critique": "Overall analysis",
-       "score": 0-100
-    }
-  }
-}
-
-EXAMPLE RESPONSE:
-{
-  "analysis": {
-    "suggestions": [
-      {
-        "id": "sug-1",
-        "title": "Group Database Nodes",
-        "description": "Several database nodes are scattered. Group them for better logical separation.",
-        "type": "grouping",
-        "impact": "high",
-        "fix_strategy": "group_nodes"
-      }
-    ],
-    "summary": {
-      "critique": "The flow is generally good but lacks logical grouping for backend services.",
-      "score": 75
-    }
-  }
-}
-
-RULES:
-- Focus on readability, flow, and logical grouping.
-- Identify if nodes are too cluttered or if the flow is confusing.
-- Suggest grouping for nodes that appear related based on their labels.`;
 
 export async function suggestFix(
     code: string,
@@ -539,5 +469,51 @@ export async function analyzeVisualLayout(
             success: false,
             error: error instanceof Error ? error.message : 'Visual analysis failed'
         };
+    }
+}
+
+/**
+ * Fix and Enhance Mermaid Diagram
+ * Adds metadata, fixes syntax, and groups nodes
+ */
+export async function fixDiagram(code: string, apiKey: string, errorMessage?: string): Promise<string> {
+    const prompt = `
+You are an expert Mermaid.js Diagram Engineer.
+
+YOUR TASK:
+Fix and Enhance the following Mermaid code.
+
+RULES:
+1. Fix any syntax errors.
+2. Ensure all nodes are semantically grouped into subgraphs (e.g. "subgraph Client", "subgraph Server", "subgraph Database") if possible.
+3. IMPORTANT: Generates JSON metadata for each node in comments.
+   Format: %% { "id": "NODE_ID", "metadata": { "role": "Specific Role", "techStack": ["Tech1", "Tech2"], "description": "Brief description" } }
+4. Return ONLY the mermaid code. No markdown fences.
+
+CODE TO FIX:
+${code}
+
+${errorMessage ? `ERROR TO FIX:\n${errorMessage}` : ''}
+`;
+
+    try {
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
+        const data = await response.json();
+        let result = data.candidates?.[0]?.content?.parts?.[0]?.text || code;
+
+        // Clean result
+        result = result.replace(/^```(?:mermaid)?/gm, '').replace(/```$/gm, '').trim();
+
+        return result;
+    } catch (error) {
+        console.error('AI Fix Failed:', error);
+        return code;
     }
 }

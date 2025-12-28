@@ -28,17 +28,17 @@ export function useAIGeneration(): UseAIGenerationReturn {
     const { isLoading, error, setLoading, setError } = useUIStore();
 
     const processAIResponse = useCallback(
-        (result: AIResponse) => {
+        async (result: AIResponse) => {
             if (!result.success || !result.mermaidCode) {
                 throw new Error(result.error || 'Failed to generate diagram');
             }
 
             setSourceCode(result.mermaidCode);
-            const { nodes: parsedNodes, edges: parsedEdges } = parseMermaid(result.mermaidCode);
+            const { nodes: parsedNodes, edges: parsedEdges } = await parseMermaid(result.mermaidCode);
 
             // Attach metadata if available
             if (result.metadata) {
-                parsedNodes.forEach((node) => {
+                parsedNodes.forEach((node: any) => {
                     const label = (node.data.label as string) || '';
                     if (label && result.metadata && result.metadata[label]) {
                         node.data.metadata = result.metadata[label] as NodeMetadata;

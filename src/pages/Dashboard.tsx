@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Settings, Zap, ChevronRight, Activity, ArrowRight, Sun, Moon, Eye, Upload
+    Settings, Zap, ChevronRight, Activity, ArrowRight, Sun, Moon, Eye, Upload, Trash2
 } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { SettingsModal } from '../components/Settings';
@@ -9,12 +9,14 @@ import { SettingsModal } from '../components/Settings';
 export function Dashboard() {
     const navigate = useNavigate();
     const {
-        savedDiagrams, theme, toggleTheme
+        savedDiagrams, theme, toggleTheme, deleteDiagram, clearAllDiagrams
     } = useFlowStore();
 
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [showSettings, setShowSettings] = useState(false);
+
+    // ... (keep handleFileSelect) ...
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -37,11 +39,7 @@ export function Dashboard() {
 
     return (
         <div className="h-screen bg-void text-primary overflow-hidden font-sans relative">
-            {/* Ambient Background */}
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vh] bg-blue-500/5 blur-[160px] rounded-full dark:bg-blue-500/10" />
-            </div>
-
+            {/* ... (keep background and header) ... */}
             {/* Top Navigation */}
             <header className="absolute top-0 left-0 right-0 h-20 px-12 flex items-center justify-between z-50">
                 <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.location.reload()}>
@@ -75,7 +73,7 @@ export function Dashboard() {
             />
 
             {/* Main Content Area */}
-            <main className="h-full flex flex-col items-center justify-center relative z-10 px-12">
+            <main className="min-h-screen flex flex-col items-center justify-start relative z-10 px-6 sm:px-12 pt-28 pb-24 overflow-y-auto">
                 <div className="max-w-4xl w-full text-center mb-16 animate-slide-up">
                     <h1 className="text-7xl font-display font-black tracking-tighter leading-[0.9] mb-6 text-primary">
                         Design the <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500">Unseen logic</span>.
@@ -86,6 +84,7 @@ export function Dashboard() {
 
                     <div className="flex flex-col items-center gap-8">
                         <div className="flex flex-wrap items-center justify-center gap-4 w-full max-w-2xl">
+                            {/* ... (keep Upload and Direct Access buttons) ... */}
                             <button
                                 className="btn-primary flex-1 min-w-[240px] group h-14"
                                 onClick={() => !isUploading && document.getElementById('main-upload')?.click()}
@@ -113,9 +112,7 @@ export function Dashboard() {
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform opacity-40" />
                             </button>
                         </div>
-
                         <input id="main-upload" type="file" className="hidden" onChange={handleFileSelect} />
-
                         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-tertiary">
                             Drop files anywhere or click to start
                         </p>
@@ -123,31 +120,60 @@ export function Dashboard() {
                 </div>
 
                 {/* Compact Recent Intelligence */}
-                <div className="w-full max-w-5xl grid grid-cols-1 sm:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                    {savedDiagrams.length > 0 ? (
-                        [...savedDiagrams].reverse().slice(0, 3).map((diagram) => (
-                            <div
-                                key={diagram.id}
-                                className="glass-panel rounded-2xl p-6 flex items-center justify-between group cursor-pointer hover:border-blue-500/30 shadow-sm hover:shadow-xl transition-all"
-                                onClick={() => navigate(`/diagram?id=${diagram.id}`)}
+                <div className="w-full max-w-5xl animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                    {savedDiagrams.length > 0 && (
+                        <div className="flex justify-end mb-4">
+                            <button
+                                onClick={() => {
+                                    if (confirm('Are you sure you want to delete ALL saved diagrams?')) {
+                                        clearAllDiagrams();
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 text-[10px] font-bold uppercase tracking-widest transition-all"
                             >
-                                <div className="flex items-center gap-4 overflow-hidden">
-                                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                                        <Activity className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
-                                    </div>
-                                    <div className="truncate text-left">
-                                        <h4 className="font-bold text-sm truncate text-primary">{diagram.name}</h4>
-                                        <p className="text-[9px] font-black text-tertiary uppercase tracking-widest">{diagram.nodes.filter(n => n.type !== 'group').length} Entities</p>
-                                    </div>
-                                </div>
-                                <ArrowRight className="w-4 h-4 text-tertiary group-hover:text-primary transition-all opacity-0 group-hover:opacity-100 scale-0 group-hover:scale-100" />
-                            </div>
-                        ))
-                    ) : (
-                        [1, 2, 3].map(i => (
-                            <div key={i} className="glass-panel border-dashed rounded-2xl p-6 opacity-20" />
-                        ))
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Clear All
+                            </button>
+                        </div>
                     )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        {savedDiagrams.length > 0 ? (
+                            [...savedDiagrams].reverse().slice(0, 3).map((diagram) => (
+                                <div
+                                    key={diagram.id}
+                                    className="glass-panel rounded-2xl p-6 flex items-center justify-between group cursor-pointer hover:border-blue-500/30 shadow-sm hover:shadow-xl transition-all relative overflow-hidden"
+                                    onClick={() => navigate(`/diagram?id=${diagram.id}`)}
+                                >
+                                    <div className="flex items-center gap-4 overflow-hidden z-10 w-full pr-8">
+                                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                                            <Activity className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
+                                        </div>
+                                        <div className="truncate text-left">
+                                            <h4 className="font-bold text-sm truncate text-primary">{diagram.name}</h4>
+                                            <p className="text-[9px] font-black text-tertiary uppercase tracking-widest">{diagram.nodes.filter(n => n.type !== 'group').length} Entities</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Delete Button (visible on hover) */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteDiagram(diagram.id);
+                                        }}
+                                        className="absolute top-2 right-2 p-2 rounded-lg bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 dark:hover:bg-red-500/20 transition-all z-20 hover:scale-110"
+                                        title="Delete"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))
+                        ) : (
+                            [1, 2, 3].map(i => (
+                                <div key={i} className="glass-panel border-dashed rounded-2xl p-6 opacity-20" />
+                            ))
+                        )}
+                    </div>
                 </div>
 
                 {savedDiagrams.length > 3 && (

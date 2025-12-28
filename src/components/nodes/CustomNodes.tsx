@@ -6,7 +6,7 @@ import { Database, Cpu, Users, Globe, Server, Zap, Play, Square, GitBranch } fro
  * High-contrast, accessible node color palette
  * Each color has a background, border, and text color for maximum readability
  */
-const NODE_STYLES = {
+export const NODE_STYLES = {
     ai: {
         bg: 'bg-violet-500/15 dark:bg-violet-500/20',
         solid: 'bg-violet-200 dark:bg-violet-900',
@@ -90,7 +90,7 @@ const NODE_STYLES = {
     },
 };
 
-type NodeStyleKey = keyof typeof NODE_STYLES;
+export type NodeStyleKey = keyof typeof NODE_STYLES;
 
 /**
  * Determine node style based on label content
@@ -415,6 +415,8 @@ export const EndNode = memo((props: any) => <TerminalNode {...props} />);
 export const DecisionNode = memo((props: any) => <DecisionNodeComponent {...props} />);
 export const DatabaseNode = memo((props: any) => <DatabaseNodeComponent {...props} />);
 
+import { ShapeNode } from './ShapeNode';
+
 export const nodeTypes = {
     start: StartNode,
     startNode: StartNode,
@@ -427,8 +429,20 @@ export const nodeTypes = {
     process: StandardNode,
     processNode: StandardNode,
     client: StandardNode,
+
+    // Rich Types (Implicitly styled by StandardNode logic)
+    ai: StandardNode,
+    team: StandardNode,
+    platform: StandardNode,
+    data: DatabaseNode, // Use Database component for Data type
+    tech: SystemNode,   // Use System component for Tech type
+
     server: SystemNode,
     system: SystemNode,
     default: StandardNode,
     group: GroupNode,
+
+    // Custom Shape Node
+    'custom-shape': ShapeNode,
+    'shape': ShapeNode, // Alias
 };

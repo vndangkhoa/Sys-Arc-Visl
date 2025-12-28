@@ -1,18 +1,32 @@
 import { useState } from 'react';
-import { Eye, Server, Database, Smartphone } from 'lucide-react';
+import { Eye, Server, Database, Smartphone, Layers, BoxSelect } from 'lucide-react';
 import { useFlowStore } from '../store';
 
 const filters = [
     { id: 'filter-client', label: 'Client', icon: Smartphone, color: '#a855f7' },
     { id: 'filter-server', label: 'Server', icon: Server, color: '#3b82f6' },
     { id: 'filter-db', label: 'Database', icon: Database, color: '#10b981' },
+    { id: 'filter-group', label: 'Groups', icon: BoxSelect, color: '#94a3b8' },
+    { id: 'filter-other', label: 'Flow / Other', icon: Layers, color: '#f59e0b' },
 ];
 
 export default function InteractiveLegend() {
     const [isOpen, setIsOpen] = useState(false);
-    const { focusMode, activeFilters, toggleFilter } = useFlowStore();
+    const { focusMode, activeFilters, toggleFilter, nodes } = useFlowStore();
 
     if (focusMode) return null;
+
+    // Calculate available categories from current nodes
+    const availableCategories = new Set(nodes.map(node => node.data.category));
+
+    // Always include 'filter-group' if there are groups, or maybe check node type
+    if (nodes.some(n => n.type === 'group')) {
+        availableCategories.add('filter-group');
+    }
+
+    const visibleFilters = filters.filter(f => availableCategories.has(f.id));
+
+    if (visibleFilters.length === 0) return null;
 
     return (
         <div className="absolute bottom-20 left-4 z-50">
@@ -35,7 +49,7 @@ export default function InteractiveLegend() {
                         Legend Filters
                     </div>
                     <div className="space-y-1">
-                        {filters.map(f => {
+                        {visibleFilters.map(f => {
                             const isActive = activeFilters.includes(f.id);
                             return (
                                 <button

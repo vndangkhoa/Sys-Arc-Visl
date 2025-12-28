@@ -9,22 +9,31 @@ import {
     SelectionMode,
 } from '@xyflow/react';
 import { useFlowStore } from '../store';
+import { useMobileDetect } from '../hooks/useMobileDetect';
 import { nodeTypes } from './nodes/CustomNodes';
 import { edgeTypes, EdgeDefs } from './edges/AnimatedEdge';
 import {
     Spline, Minus, Plus, Maximize, Map, Wand2,
-    RotateCcw, Download, Command, Hand, MousePointer2, Settings2, ChevronDown
+    Hand, MousePointer2, Settings2, ChevronDown
 } from 'lucide-react';
 import { getLayoutedElements } from '../lib/layoutEngine';
+
+
+
 
 export function FlowCanvas() {
     const {
         nodes, edges, onNodesChange, onEdgesChange, onConnect,
         setSelectedNode, edgeStyle, setEdgeStyle, theme, activeFilters,
-        setNodes, setEdges
+        setNodes, setEdges, focusMode
     } = useFlowStore();
-    const { zoomIn, zoomOut, fitView, getViewport } = useReactFlow();
+    const { isMobile } = useMobileDetect();
+    const { zoomIn, zoomOut, fitView } = useReactFlow();
     const [showToolkit, setShowToolkit] = useState(false); // New State
+
+    // Track cursor - Removed for single user mode
+    // const handleMouseMove = useCallback((e: React.MouseEvent) => { ... }, []);
+
     const [showMiniMap, setShowMiniMap] = useState(true);
     const [isSelectionMode, setIsSelectionMode] = useState(false); // false = Pan, true = Select
 
@@ -71,9 +80,35 @@ export function FlowCanvas() {
     // Filter nodes based on active filters
     const filteredNodes = useMemo(() => {
         return nodes.map(node => {
-            if (node.type === 'group') return node;
+            if (node.type === 'group') {
+                const category = (node.data?.category as string) || 'filter-other';
+                // Group is visible if Groups are enabled AND its specific category is enabled
+                const isGroupEnabled = activeFilters.includes('filter-group');
+                const isCategoryEnabled = activeFilters.includes(category);
 
-            const category = (node.data?.category as string) || (node.type === 'database' ? 'filter-db' : node.type === 'client' ? 'filter-client' : 'filter-server');
+                return {
+                    ...node,
+                    hidden: !isGroupEnabled || !isCategoryEnabled
+                };
+            }
+
+            let category = (node.data?.category as string);
+
+            if (!category) {
+                switch (node.type) {
+                    case 'client':
+                        category = 'filter-client';
+                        break;
+                    case 'database':
+                        category = 'filter-db';
+                        break;
+                    case 'server':
+                        category = 'filter-server';
+                        break;
+                    default:
+                        category = 'filter-other'; // Start, End, Process, Decision, etc.
+                }
+            }
 
             return {
                 ...node,
@@ -157,6 +192,7 @@ export function FlowCanvas() {
 
     return (
         <div className="w-full h-full relative bg-void">
+
             <EdgeDefs />
             <ReactFlow
                 nodes={filteredNodes}
@@ -172,6 +208,8 @@ export function FlowCanvas() {
                 fitViewOptions={{ padding: 0.2, maxZoom: 1.5 }}
                 minZoom={0.1}
                 maxZoom={4}
+                panOnScroll={!isMobile} // Disable on mobile to prevent scroll conflicts
+                zoomOnPinch={true} // Enable pinch-to-zoom on mobile
                 panOnDrag={!isSelectionMode}
                 selectionOnDrag={isSelectionMode}
                 selectionMode={SelectionMode.Partial}
@@ -194,7 +232,7 @@ export function FlowCanvas() {
                 />
 
                 {/* Control Panel - Top Right (Unified Toolkit) */}
-                <Panel position="top-right" className="!m-4 flex flex-col items-end gap-3 z-50">
+                <Panel position="top-right" className={`!m-4 !mr-6 flex flex-col items-end gap-3 z-50 transition-all duration-300 ${focusMode ? '!mt-20' : ''}`}>
                     <div className="relative">
                         <button
                             onClick={() => setShowToolkit(!showToolkit)}
@@ -287,9 +325,9 @@ export function FlowCanvas() {
 
                 </Panel>
 
-                {/* MiniMap Container - Bottom Right */}
+                {/* MiniMap Container - Bottom Right (Hidden on Mobile) */}
                 <Panel position="bottom-right" className="!m-4 z-40">
-                    {showMiniMap && nodes.length > 0 && (
+                    {showMiniMap && nodes.length > 0 && !isMobile && (
                         <div className="w-52 h-36 rounded-xl border border-slate-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <MiniMap
                                 nodeColor={miniMapNodeColor}
@@ -322,40 +360,11 @@ export function FlowCanvas() {
                     </Panel>
                 )}
 
-                {/* Command Palette Hint - Top Center */}
-                <Panel position="top-center" className="!mt-6">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 dark:bg-surface/60 backdrop-blur-md border border-black/5 dark:border-white/10 rounded-lg text-slate-500 dark:text-tertiary hover:text-slate-800 dark:hover:text-secondary transition-colors cursor-pointer opacity-60 hover:opacity-100">
-                        <Command className="w-3 h-3" />
-                        <span className="text-[9px] font-bold uppercase tracking-wider">K</span>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-500">Quick Actions</span>
-                    </div>
-                </Panel>
+                {/* Command Palette Hint - Top Center (Desktop only) */}
+
             </ReactFlow>
         </div>
     );
 }
 
-// Control Button Component
-interface ControlButtonProps {
-    icon: React.ComponentType<{ className?: string }>;
-    onClick: () => void;
-    title: string;
-    highlight?: boolean;
-}
 
-function ControlButton({ icon: Icon, onClick, title, highlight }: ControlButtonProps) {
-    return (
-        <button
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
-            className={`
-                w-10 h-10 flex items-center justify-center 
-                text-secondary hover:text-primary hover:bg-blue-500/10 
-                transition-all
-                ${highlight ? 'text-blue-500' : ''}
-            `}
-            title={title}
-        >
-            <Icon className="w-4 h-4" />
-        </button>
-    );
-}

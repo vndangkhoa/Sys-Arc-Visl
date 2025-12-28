@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { temporal } from 'zundo';
 import { addEdge, applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import type { NodeChange, EdgeChange } from '@xyflow/react';
 import type { Node, Edge, Connection, SavedDiagram, EdgeStyle } from '../types';
@@ -40,6 +41,7 @@ interface DiagramState {
     saveDiagram: (name: string) => void;
     loadDiagram: (id: string) => void;
     deleteDiagram: (id: string) => void;
+    clearAllDiagrams: () => void;
     getSavedDiagrams: () => SavedDiagram[];
 
     // Reset
@@ -58,130 +60,148 @@ const initialState = {
 };
 
 export const useDiagramStore = create<DiagramState>()(
-    persist(
-        (set, get) => ({
-            ...initialState,
+    temporal(
+        persist(
+            (set, get) => ({
+                ...initialState,
 
-            // Setters
-            setNodes: (nodes) => set({ nodes }),
-            setEdges: (edges) => set({ edges }),
-            setSourceCode: (sourceCode) => set({ sourceCode }),
-            setEdgeStyle: (edgeStyle) => set({ edgeStyle }),
-            setGenerationComplexity: (generationComplexity) => set({ generationComplexity }),
+                // Setters
+                setNodes: (nodes) => set({ nodes }),
+                setEdges: (edges) => set({ edges }),
+                setSourceCode: (sourceCode) => set({ sourceCode }),
+                setEdgeStyle: (edgeStyle) => set({ edgeStyle }),
+                setGenerationComplexity: (generationComplexity) => set({ generationComplexity }),
 
-            // React Flow handlers
-            onNodesChange: (changes) => {
-                set({
-                    nodes: applyNodeChanges(changes, get().nodes),
-                });
-            },
-
-            onEdgesChange: (changes) => {
-                set({
-                    edges: applyEdgeChanges(changes, get().edges),
-                });
-            },
-
-            onConnect: (connection) => {
-                set({
-                    edges: addEdge(connection, get().edges),
-                });
-            },
-
-            // Node operations
-            updateNodeData: (nodeId, data) => {
-                set({
-                    nodes: get().nodes.map((node) =>
-                        node.id === nodeId
-                            ? { ...node, data: { ...node.data, ...data } }
-                            : node
-                    ),
-                });
-            },
-
-            updateNodeType: (nodeId, type) => {
-                set({
-                    nodes: get().nodes.map((node) =>
-                        node.id === nodeId ? { ...node, type } : node
-                    ),
-                });
-            },
-
-            deleteNode: (nodeId) => {
-                set({
-                    nodes: get().nodes.filter((node) => node.id !== nodeId),
-                    edges: get().edges.filter(
-                        (edge) => edge.source !== nodeId && edge.target !== nodeId
-                    ),
-                });
-            },
-
-            // Diagram persistence
-            saveDiagram: (name) => {
-                const { nodes, edges, sourceCode } = get();
-                const diagrams = get().getSavedDiagrams();
-                const now = new Date().toISOString();
-
-                const newDiagram: SavedDiagram = {
-                    id: `diagram_${Date.now()}`,
-                    name,
-                    nodes,
-                    edges,
-                    sourceCode,
-                    createdAt: now,
-                    updatedAt: now,
-                };
-
-                localStorage.setItem(
-                    'flowgen_diagrams',
-                    JSON.stringify([newDiagram, ...diagrams])
-                );
-                set({ savedDiagrams: [newDiagram, ...diagrams] });
-            },
-
-            loadDiagram: (id) => {
-                const diagrams = get().getSavedDiagrams();
-                const diagram = diagrams.find((d) => d.id === id);
-
-                if (diagram) {
+                // React Flow handlers
+                onNodesChange: (changes) => {
                     set({
-                        nodes: diagram.nodes,
-                        edges: diagram.edges,
-                        sourceCode: diagram.sourceCode,
+                        nodes: applyNodeChanges(changes, get().nodes),
                     });
-                }
-            },
+                },
 
-            deleteDiagram: (id) => {
-                const diagrams = get().getSavedDiagrams();
-                localStorage.setItem(
-                    'flowgen_diagrams',
-                    JSON.stringify(diagrams.filter((d) => d.id !== id))
-                );
-                set({ savedDiagrams: diagrams.filter((d) => d.id !== id) });
-            },
+                onEdgesChange: (changes) => {
+                    set({
+                        edges: applyEdgeChanges(changes, get().edges),
+                    });
+                },
 
-            getSavedDiagrams: () => {
-                try {
-                    const stored = localStorage.getItem('flowgen_diagrams');
-                    return stored ? JSON.parse(stored) : [];
-                } catch {
-                    return [];
-                }
-            },
+                onConnect: (connection) => {
+                    set({
+                        edges: addEdge(connection, get().edges),
+                    });
+                },
 
-            // Reset
-            reset: () => set(initialState),
-        }),
-        {
-            name: 'flowgen-diagram-storage',
-            // Only persist saved diagrams and settings, NOT the current diagram
-            // This ensures canvas clears on refresh unless user saves a draft
-            partialize: (state) => ({
-                savedDiagrams: state.savedDiagrams,
-                edgeStyle: state.edgeStyle,
-                generationComplexity: state.generationComplexity,
+                // Node operations
+                updateNodeData: (nodeId, data) => {
+                    set({
+                        nodes: get().nodes.map((node) =>
+                            node.id === nodeId
+                                ? { ...node, data: { ...node.data, ...data } }
+                                : node
+                        ),
+                    });
+                },
+
+                updateNodeType: (nodeId, type) => {
+                    set({
+                        nodes: get().nodes.map((node) =>
+                            node.id === nodeId ? { ...node, type } : node
+                        ),
+                    });
+                },
+
+                deleteNode: (nodeId) => {
+                    set({
+                        nodes: get().nodes.filter((node) => node.id !== nodeId),
+                        edges: get().edges.filter(
+                            (edge) => edge.source !== nodeId && edge.target !== nodeId
+                        ),
+                    });
+                },
+
+                // Diagram persistence
+                saveDiagram: (name) => {
+                    const { nodes, edges, sourceCode } = get();
+                    const diagrams = get().getSavedDiagrams();
+                    const now = new Date().toISOString();
+
+                    const newDiagram: SavedDiagram = {
+                        id: `diagram_${Date.now()}`,
+                        name,
+                        nodes,
+                        edges,
+                        sourceCode,
+                        createdAt: now,
+                        updatedAt: now,
+                    };
+
+                    localStorage.setItem(
+                        'flowgen_diagrams',
+                        JSON.stringify([newDiagram, ...diagrams])
+                    );
+                    set({ savedDiagrams: [newDiagram, ...diagrams] });
+                },
+
+                loadDiagram: (id) => {
+                    const diagrams = get().getSavedDiagrams();
+                    const diagram = diagrams.find((d) => d.id === id);
+
+                    if (diagram) {
+                        set({
+                            nodes: diagram.nodes,
+                            edges: diagram.edges,
+                            sourceCode: diagram.sourceCode,
+                        });
+                    }
+                },
+
+                deleteDiagram: (id) => {
+                    const diagrams = get().getSavedDiagrams();
+                    localStorage.setItem(
+                        'flowgen_diagrams',
+                        JSON.stringify(diagrams.filter((d) => d.id !== id))
+                    );
+                    set({ savedDiagrams: diagrams.filter((d) => d.id !== id) });
+                },
+
+                clearAllDiagrams: () => {
+                    localStorage.removeItem('flowgen_diagrams');
+                    set({ savedDiagrams: [] });
+                },
+
+                getSavedDiagrams: () => {
+                    try {
+                        const stored = localStorage.getItem('flowgen_diagrams');
+                        return stored ? JSON.parse(stored) : [];
+                    } catch {
+                        return [];
+                    }
+                },
+
+                // Reset
+                reset: () => set(initialState),
             }),
+            {
+                name: 'flowgen-diagram-storage',
+                // Only persist saved diagrams and settings, NOT the current diagram
+                // This ensures canvas clears on refresh unless user saves a draft
+                partialize: (state) => ({
+                    savedDiagrams: state.savedDiagrams,
+                    edgeStyle: state.edgeStyle,
+                    generationComplexity: state.generationComplexity,
+                }),
+            }
+        ),
+        {
+            // Zundo configuration
+            limit: 100, // Limit history to 100 states
+            partialize: (state) => ({
+                nodes: state.nodes,
+                edges: state.edges,
+                sourceCode: state.sourceCode,
+            }),
+            // Don't track intermediate edits while dragging, only on release if possible
+            // But for now, tracking everything is safer.
         }
     )
 );

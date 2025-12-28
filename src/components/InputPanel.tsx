@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { ImageUpload } from './ImageUpload';
 import { CodeEditor } from './CodeEditor';
 import { Image, Code, MessageSquare, Loader2, Zap } from 'lucide-react';
@@ -10,20 +10,39 @@ import { getLayoutedElements } from '../lib/layoutEngine';
 type Tab = 'image' | 'code' | 'describe';
 
 export function InputPanel() {
-    const [activeTab, setActiveTab] = useState<Tab>('image');
-    const [description, setDescription] = useState('');
     const {
         setNodes, setEdges, setLoading, setError,
         setSourceCode, isLoading, ollamaUrl, modelName,
         aiMode, onlineProvider, apiKey,
-        generationComplexity, setGenerationComplexity
+        generationComplexity, setGenerationComplexity,
+        // Use global state for input persistence
+        inputDescription: description, setInputDescription: setDescription,
+        inputActiveTab: activeTab, setInputActiveTab: setActiveTab,
+
+        // Actions for auto-sync and save
+        setMermaidCode, saveDiagram
     } = useFlowStore();
 
     const handleTextGenerate = useCallback(async () => {
         if (!description.trim()) return;
-        if (aiMode === 'offline' && !ollamaUrl) {
-            setError('Please configure Ollama URL in settings');
-            return;
+
+        // Validate AI configuration before processing
+        if (aiMode === 'offline') {
+            if (!ollamaUrl) {
+                setError('Please configure Ollama URL in Settings → Local mode');
+                return;
+            }
+        } else if (aiMode === 'online') {
+            if (onlineProvider !== 'ollama-cloud' && !apiKey) {
+                setError(`Please enter your ${onlineProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'} API key in Settings → Cloud mode`);
+                return;
+            }
+            if (onlineProvider === 'ollama-cloud' && !ollamaUrl) {
+                setError('Please configure the Remote Ollama endpoint in Settings → Cloud mode');
+                return;
+            }
+        } else if (aiMode === 'browser') {
+            // Browser mode is okay for text - just needs model loaded
         }
 
         setLoading(true);
@@ -44,7 +63,10 @@ export function InputPanel() {
                 throw new Error(result.error || 'Could not interpret flow from description');
             }
 
+            // Sync with global Mermaid code store so it appears in the Code tab
+            setMermaidCode(result.mermaidCode);
             setSourceCode(result.mermaidCode);
+
             const { nodes: parsedNodes, edges: parsedEdges } = await parseMermaid(result.mermaidCode);
 
             if (result.metadata) {
@@ -59,12 +81,18 @@ export function InputPanel() {
             const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(parsedNodes, parsedEdges);
             setNodes(layoutedNodes);
             setEdges(layoutedEdges);
+
+            // Auto-save the generated diagram
+            // Generate a name based on the description or a timestamp
+            const autoSaveName = description.split(' ').slice(0, 4).join(' ') || `Auto-Save ${new Date().toLocaleTimeString()}`;
+            saveDiagram(autoSaveName);
+
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Failed to process description');
         } finally {
             setLoading(false);
         }
-    }, [description, ollamaUrl, modelName, aiMode, onlineProvider, apiKey, generationComplexity, setNodes, setEdges, setLoading, setError, setSourceCode]);
+    }, [description, ollamaUrl, modelName, aiMode, onlineProvider, apiKey, generationComplexity, setNodes, setEdges, setLoading, setError, setSourceCode, setMermaidCode, saveDiagram]);
 
     const tabs = [
         { id: 'image' as Tab, icon: Image, label: 'Upload' },

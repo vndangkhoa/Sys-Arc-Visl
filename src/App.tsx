@@ -3,7 +3,18 @@ import { Dashboard } from './pages/Dashboard';
 import { Editor } from './pages/Editor';
 import { History } from './pages/History';
 
+import { useEffect } from 'react';
+import { usePluginStore } from './store/pluginStore';
+
+
 function App() {
+  const { registerPlugin } = usePluginStore();
+
+  useEffect(() => {
+    // Register Plugins
+    // StatsPlugin removed
+  }, [registerPlugin]);
+
   return (
     <BrowserRouter>
       <Routes>

@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AIMode, OnlineProvider, Theme } from '../types';
+import { checkIsMobile } from '../hooks/useMobileDetect';
 
 interface SettingsState {
     // AI Configuration
@@ -39,8 +40,19 @@ const getInitialTheme = (): Theme => {
     return 'dark';
 };
 
+// Check if we're on a mobile device for initial AI mode
+const getInitialAiMode = (): AIMode => {
+    if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('flowgen_ai_mode') as AIMode | null;
+        if (stored) return stored;
+        // Default to online (cloud) on mobile for better performance
+        if (checkIsMobile()) return 'online';
+    }
+    return 'offline';
+};
+
 const initialSettings = {
-    aiMode: 'offline' as AIMode,
+    aiMode: getInitialAiMode(),
     onlineProvider: 'openai' as OnlineProvider,
     apiKey: '',
     ollamaUrl: 'http://localhost:11434',

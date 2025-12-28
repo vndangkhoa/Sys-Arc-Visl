@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Cpu, X, Database, Globe, ShieldCheck, ChevronDown, RefreshCw, Zap, Download, Eye } from 'lucide-react';
+import { Cpu, X, Database, Globe, ShieldCheck, ChevronDown, RefreshCw, Zap, Download, Eye, Smartphone } from 'lucide-react';
 import { useFlowStore } from '../store';
+import { useMobileDetect } from '../hooks/useMobileDetect';
 import { webLlmService } from '../lib/webLlmService';
 import type { WebLlmProgress } from '../lib/webLlmService';
 import { visionService } from '../lib/visionService';
@@ -25,6 +26,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         aiMode, setAiMode,
         onlineProvider, setOnlineProvider
     } = useFlowStore();
+    const { isMobile } = useMobileDetect();
 
     const [systemStatus, setSystemStatus] = useState<'online' | 'offline'>('offline');
     const [isVerifying, setIsVerifying] = useState(false);
@@ -40,6 +42,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const [visionProgress, setVisionProgress] = useState<VisionProgress | null>(null);
     const [isVisionLoading, setIsVisionLoading] = useState(false);
     const [isVisionReady, setIsVisionReady] = useState(false);
+
+    // API Key Verification State
+    const [keyVerificationStatus, setKeyVerificationStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+    const [keyVerificationError, setKeyVerificationError] = useState<string | null>(null);
 
     const checkBrowserStatus = useCallback(() => {
         const llmStatus = webLlmService.getStatus();
@@ -114,12 +120,59 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             if (onlineProvider === 'ollama-cloud') {
                 await fetchModels();
             } else {
-                const isKeyValid = apiKey.length > 20 && (apiKey.startsWith('sk-') || apiKey.startsWith('AIza') || apiKey.length > 30);
-                setSystemStatus(isKeyValid ? 'online' : 'offline');
+                // Just check format, actual verification is done with verify button
+                const isKeyFormatValid = apiKey.length > 20 && (apiKey.startsWith('sk-') || apiKey.startsWith('AIza') || apiKey.length > 30);
+                setSystemStatus(isKeyFormatValid && keyVerificationStatus === 'valid' ? 'online' : 'offline');
             }
         }
         setIsVerifying(false);
-    }, [aiMode, fetchModels, apiKey, onlineProvider, checkBrowserStatus]);
+    }, [aiMode, fetchModels, apiKey, onlineProvider, checkBrowserStatus, keyVerificationStatus]);
+
+    // Verify API key by making a test request
+    const verifyApiKey = async () => {
+        if (!apiKey || apiKey.length < 10) {
+            setKeyVerificationStatus('invalid');
+            setKeyVerificationError('API key is too short');
+            return;
+        }
+
+        setKeyVerificationStatus('checking');
+        setKeyVerificationError(null);
+
+        try {
+            if (onlineProvider === 'openai') {
+                // Test OpenAI key with models list endpoint (lightweight)
+                const response = await fetch('https://api.openai.com/v1/models', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                if (response.ok) {
+                    setKeyVerificationStatus('valid');
+                    setSystemStatus('online');
+                } else {
+                    const error = await response.json().catch(() => ({}));
+                    setKeyVerificationStatus('invalid');
+                    setKeyVerificationError(error.error?.message || `Error: ${response.status}`);
+                }
+            } else if (onlineProvider === 'gemini') {
+                // Test Gemini key with a minimal request
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+                );
+                if (response.ok) {
+                    setKeyVerificationStatus('valid');
+                    setSystemStatus('online');
+                } else {
+                    const error = await response.json().catch(() => ({}));
+                    setKeyVerificationStatus('invalid');
+                    setKeyVerificationError(error.error?.message || `Error: ${response.status}`);
+                }
+            }
+        } catch (error) {
+            setKeyVerificationStatus('invalid');
+            setKeyVerificationError(error instanceof Error ? error.message : 'Connection failed');
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -134,7 +187,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     return (
         <>
             <div className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-            <div className="fixed top-24 right-12 w-96 floating-glass p-8 rounded-[2rem] z-[9999] animate-slide-up titanium-border shadow-2xl flex flex-col gap-6">
+            <div className={`fixed z-[9999] flex flex-col gap-4
+                ${isMobile
+                    ? 'left-4 right-4 top-16 max-h-[80vh] rounded-[2rem]'
+                    : 'top-24 right-12 w-96 rounded-[2rem]'
+                } floating-glass p-6 titanium-border shadow-2xl overflow-hidden`}
+            >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
@@ -145,12 +203,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             <p className="text-[10px] text-tertiary font-medium uppercase tracking-wider">Configuration</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors group">
-                        <X className="w-5 h-5 text-tertiary group-hover:text-primary transition-colors" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {isMobile && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+                                <Smartphone className="w-3 h-3 text-amber-400" />
+                                <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider">Lite</span>
+                            </div>
+                        )}
+                        <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors group">
+                            <X className="w-5 h-5 text-tertiary group-hover:text-primary transition-colors" />
+                        </button>
+                    </div>
                 </div>
 
-                <div className="space-y-6">
+                {/* Scrollable Content Area */}
+                <div className={`${isMobile ? 'flex-1 overflow-y-auto' : ''} space-y-6`}>
                     {/* Mode Selection */}
                     <div className="flex items-center gap-1 p-1 bg-black/20 rounded-xl border border-white/5">
                         <button
@@ -190,6 +257,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                     {aiMode === 'browser' && (
                         <div className="space-y-4 animate-fade-in max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                            {/* Mobile Warning */}
+                            {isMobile && (
+                                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                                    <div className="flex items-start gap-2">
+                                        <Smartphone className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Performance Warning</p>
+                                            <p className="text-[9px] text-amber-400/70 mt-1 leading-relaxed">Browser AI requires 1GB+ download and may drain battery. Cloud mode is recommended for mobile.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {/* Neural Engine Card */}
                             <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10">
                                 <div className="flex items-center gap-3 mb-3">
@@ -358,9 +437,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-tertiary pl-1">AI Engine</label>
                                 <div className="grid grid-cols-1 gap-2">
                                     {[
-                                        { id: 'openai', label: 'OpenAI (GPT-4o)', color: 'bg-green-500' },
-                                        { id: 'gemini', label: 'Google Gemini Pro', color: 'bg-blue-500' },
-                                        { id: 'ollama-cloud', label: 'Remote Ollama', color: 'bg-orange-500' }
+                                        { id: 'openai', label: 'OpenAI (GPT-4o)', color: 'bg-green-500', apiUrl: 'https://platform.openai.com/api-keys' },
+                                        { id: 'gemini', label: 'Google Gemini Pro', color: 'bg-blue-500', apiUrl: 'https://aistudio.google.com/apikey' },
+                                        { id: 'ollama-cloud', label: 'Remote Ollama', color: 'bg-orange-500', apiUrl: null }
                                     ].map(p => (
                                         <button
                                             key={p.id}
@@ -386,13 +465,64 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-tertiary pl-1">
                                     {onlineProvider === 'ollama-cloud' ? 'API Endpoint' : 'Secret Key'}
                                 </label>
-                                <input
-                                    type={onlineProvider === 'ollama-cloud' ? 'text' : 'password'}
-                                    value={onlineProvider === 'ollama-cloud' ? ollamaUrl : apiKey}
-                                    onChange={(e) => onlineProvider === 'ollama-cloud' ? setOllamaUrl(e.target.value) : setApiKey(e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-[12px] outline-none focus:border-blue-500/50 font-mono transition-all text-primary placeholder:text-slate-600"
-                                    placeholder={onlineProvider === 'ollama-cloud' ? 'https://api.example.com' : 'sk-...'}
-                                />
+                                <div className="flex gap-2">
+                                    <input
+                                        type={onlineProvider === 'ollama-cloud' ? 'text' : 'password'}
+                                        value={onlineProvider === 'ollama-cloud' ? ollamaUrl : apiKey}
+                                        onChange={(e) => {
+                                            if (onlineProvider === 'ollama-cloud') {
+                                                setOllamaUrl(e.target.value);
+                                            } else {
+                                                setApiKey(e.target.value);
+                                                setKeyVerificationStatus('idle');
+                                            }
+                                        }}
+                                        className="flex-1 bg-black/20 border border-white/10 rounded-xl p-3 text-[12px] outline-none focus:border-blue-500/50 font-mono transition-all text-primary placeholder:text-slate-600"
+                                        placeholder={onlineProvider === 'ollama-cloud' ? 'https://api.example.com' : 'sk-...'}
+                                    />
+                                    {onlineProvider !== 'ollama-cloud' && (
+                                        <button
+                                            onClick={verifyApiKey}
+                                            disabled={keyVerificationStatus === 'checking' || !apiKey}
+                                            className={`px-4 rounded-xl border transition-all flex items-center justify-center min-w-[80px] text-[10px] font-bold uppercase tracking-wider
+                                                ${keyVerificationStatus === 'valid'
+                                                    ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+                                                    : keyVerificationStatus === 'invalid'
+                                                        ? 'bg-red-500/20 border-red-500/30 text-red-400'
+                                                        : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+                                        >
+                                            {keyVerificationStatus === 'checking' ? (
+                                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                            ) : keyVerificationStatus === 'valid' ? (
+                                                <>✓ Valid</>
+                                            ) : keyVerificationStatus === 'invalid' ? (
+                                                <>✗ Invalid</>
+                                            ) : (
+                                                'Verify'
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                                {keyVerificationStatus === 'invalid' && keyVerificationError && (
+                                    <p className="text-[9px] text-red-400 pl-1">{keyVerificationError}</p>
+                                )}
+                                {keyVerificationStatus === 'valid' && (
+                                    <p className="text-[9px] text-emerald-400 pl-1">API key verified successfully!</p>
+                                )}
+                                {/* Get API Key Link */}
+                                {onlineProvider !== 'ollama-cloud' && (
+                                    <a
+                                        href={onlineProvider === 'openai'
+                                            ? 'https://platform.openai.com/api-keys'
+                                            : 'https://aistudio.google.com/apikey'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors pl-1 mt-1"
+                                    >
+                                        <Globe className="w-3 h-3" />
+                                        Get {onlineProvider === 'openai' ? 'OpenAI' : 'Google Gemini'} API Key →
+                                    </a>
+                                )}
                             </div>
                         </div>
                     )}

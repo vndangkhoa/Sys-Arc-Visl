@@ -1,0 +1,25 @@
+{
+    "name": "SysVis.AI - System Design Visualizer",
+    "short_name": "SysVis.AI",
+    "description": "AI-Powered System Design Visualizer - Transform ideas into beautiful, interactive flowcharts",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0B1221",
+    "theme_color": "#0B1221",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "/vite.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ],
+    "categories": [
+        "productivity",
+        "developer tools",
+        "design"
+    ],
+    "scope": "/",
+    "lang": "en"
+}

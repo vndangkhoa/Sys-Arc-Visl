@@ -10,6 +10,13 @@ interface UIState {
     leftPanelOpen: boolean;
     rightPanelOpen: boolean;
     focusMode: boolean;
+    mobileEditorOpen: boolean; // Mobile bottom sheet state
+
+    // Input Panel persistence
+    inputDescription: string;
+    inputActiveTab: 'image' | 'code' | 'describe';
+    inputImageUrl: string | null;
+    mermaidCode: string;
 
     // Selection
     selectedNode: Node | null;
@@ -26,6 +33,14 @@ interface UIState {
     setRightPanelOpen: (open: boolean) => void;
     setFocusMode: (focusMode: boolean) => void;
     toggleFocusMode: () => void;
+    setMobileEditorOpen: (open: boolean) => void;
+
+    // Input Panel actions
+    setInputDescription: (description: string) => void;
+    setInputActiveTab: (tab: 'image' | 'code' | 'describe') => void;
+    setInputImageUrl: (url: string | null) => void;
+    setMermaidCode: (code: string) => void;
+    clearInputs: () => void;
 
     setSelectedNode: (node: Node | null) => void;
 
@@ -38,13 +53,18 @@ interface UIState {
     clearError: () => void;
 }
 
-const DEFAULT_FILTERS = ['filter-client', 'filter-server', 'filter-db', 'filter-other'];
+const DEFAULT_FILTERS = ['filter-client', 'filter-server', 'filter-db', 'filter-other', 'filter-group'];
 
 export const useUIStore = create<UIState>()((set, get) => ({
     // Initial state
     leftPanelOpen: true,
     rightPanelOpen: false,
     focusMode: false,
+    mobileEditorOpen: false,
+    inputDescription: '',
+    inputActiveTab: 'image',
+    inputImageUrl: null,
+    mermaidCode: '',
     selectedNode: null,
     activeFilters: DEFAULT_FILTERS,
     isLoading: false,
@@ -55,6 +75,14 @@ export const useUIStore = create<UIState>()((set, get) => ({
     setRightPanelOpen: (rightPanelOpen) => set({ rightPanelOpen }),
     setFocusMode: (focusMode) => set({ focusMode }),
     toggleFocusMode: () => set({ focusMode: !get().focusMode }),
+    setMobileEditorOpen: (mobileEditorOpen) => set({ mobileEditorOpen }),
+
+    // Input Panel actions
+    setInputDescription: (inputDescription) => set({ inputDescription }),
+    setInputActiveTab: (inputActiveTab) => set({ inputActiveTab }),
+    setInputImageUrl: (inputImageUrl) => set({ inputImageUrl }),
+    setMermaidCode: (mermaidCode) => set({ mermaidCode }),
+    clearInputs: () => set({ inputDescription: '', inputImageUrl: null, mermaidCode: '' }),
 
     // Selection actions
     setSelectedNode: (selectedNode) => {

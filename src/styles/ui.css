@@ -339,3 +339,81 @@
     background: rgba(139, 92, 246, 0.15);
     color: #8b5cf6;
 }
+
+/* ============================================
+   Mobile Touch Target Sizes
+   Ensure minimum 44x44px for accessibility
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* Increase button touch targets on mobile */
+    .btn-icon {
+        min-width: 44px;
+        min-height: 44px;
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        min-height: 48px;
+        padding: 1rem 1.5rem;
+    }
+
+    .btn-ghost {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+    }
+
+    /* Toolbar and panel buttons */
+    .glass-panel button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Form inputs */
+    .input-base {
+        min-height: 48px;
+        font-size: 1rem; /* Prevent zoom on iOS */
+    }
+
+    /* Tabs and navigation items */
+    button[role="tab"],
+    nav button,
+    nav a {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* Mobile-specific animation for bottom sheet */
+@keyframes slide-up-sheet {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .animate-slide-up {
+        animation: slide-up-sheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.2s ease-out forwards;
+}

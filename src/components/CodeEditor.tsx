@@ -1,46 +1,53 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import Editor from '@monaco-editor/react';
+import { useStore } from 'zustand';
 import { useFlowStore } from '../store';
+import { useDiagramStore } from '../store/diagramStore';
 import { parseMermaid, detectInputType } from '../lib/mermaidParser';
 import { getLayoutedElements } from '../lib/layoutEngine';
-import { interpretText, suggestFix } from '../lib/aiService';
-import {
-    Loader2, Zap, Trash2, FileText, Lightbulb,
-    AlertCircle
-} from 'lucide-react';
+import { interpretText } from '../lib/aiService';
+import { MonacoWrapper } from './editor/MonacoWrapper';
+import { EditorToolbar } from './editor/EditorToolbar';
 
-const SAMPLE_MERMAID = `flowchart TD
-    subgraph AI [AI Director]
-        A1[Analyze Trends]
-        A2[Generate Script]
-        A3[Create Draft]
-    end
 
-    subgraph Team [Intern Team]
-        B1[Fine-tune Ideas]
-        B2[Edit Content]
-        B3[Review & Approve]
-    end
-
-    A1 --> A2 --> A3
-    A3 --> B1
-    B1 --> B2 --> B3`;
 
 export function CodeEditor() {
-    const [code, setCode] = useState<string>('');
+    // ... (store access)
+    // Use global mermaidCode from store for persistence across panel toggles
+    const {
+        setNodes, setEdges, setLoading, setError, setSourceCode, isLoading,
+        ollamaUrl, modelName, aiMode, onlineProvider, apiKey, theme,
+        mermaidCode: code, setMermaidCode: setCode
+    } = useFlowStore();
+
     const [inputType, setInputType] = useState<'mermaid' | 'natural'>('mermaid');
     const [syntaxErrors, setSyntaxErrors] = useState<{ line: number; message: string }[]>([]);
-    const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
+
+
+
+    // ... (rest of logic up to handleTemplateSelect)
+
+    // We need to inject the ShapePicker logic. 
+    // Since I cannot match the exact lines perfectly without context, I will replace the component return and adding imports/states. 
+    // But replace_file_content with 'context' is better. I will try to target specific blocks. 
+
+    // I will use replace_file_content to add imports first.
+    // Then add state.
+    // Then add handleShapeSelect.
+    // Then update return.
+
+    // Wait, I am doing all of this in one tool call? Use separate blocks if possible? 
+    // The previous tool calls are queued. This is the 5th tool call in this turn? No, 5th.
+
+    // I will replace the imports first in this call.
+    // Actually, I'll do a MultiReplace for CodeEditor.
+
+
 
     // Use any for editor refs since OnMount type isn't reliably exported
+    // We'll keep these refs here to handle the node selection highlighting logic
     const editorRef = useRef<any>(null);
     const monacoRef = useRef<any>(null);
     const decorationsRef = useRef<string[]>([]);
-
-    const {
-        setNodes, setEdges, setLoading, setError, setSourceCode, isLoading,
-        ollamaUrl, modelName, aiMode, onlineProvider, apiKey, nodes, setSelectedNode, theme
-    } = useFlowStore();
 
     // Listen for node click events from the canvas (bidirectional highlighting)
     useEffect(() => {
@@ -59,8 +66,6 @@ export function CodeEditor() {
             );
 
             if (lineIndex !== -1) {
-                setHighlightedLine(lineIndex + 1);
-
                 // Scroll to and highlight the line
                 editorRef.current.revealLineInCenter(lineIndex + 1);
 
@@ -82,7 +87,6 @@ export function CodeEditor() {
                     setTimeout(() => {
                         if (editorRef.current) {
                             decorationsRef.current = editorRef.current.deltaDecorations(decorationsRef.current, []);
-                            setHighlightedLine(null);
                         }
                     }, 3000);
                 }
@@ -97,7 +101,7 @@ export function CodeEditor() {
         const newCode = value || '';
         setCode(newCode);
         if (newCode.trim()) setInputType(detectInputType(newCode));
-    }, [inputType]);
+    }, [setCode]);
 
     const handleGenerate = useCallback(async () => {
         if (!code.trim()) return;
@@ -114,21 +118,51 @@ export function CodeEditor() {
                 const result = await interpretText(code, ollamaUrl, modelName, aiMode, onlineProvider, apiKey);
                 if (!result.success || !result.mermaidCode) throw new Error(result.error || 'Interpretation failed');
                 mermaidCode = result.mermaidCode;
+                metadata = result.metadata;
             }
 
             setSourceCode(mermaidCode);
-            const { nodes: parsedNodes, edges: parsedEdges } = await parseMermaid(mermaidCode);
 
-            if (metadata) {
-                parsedNodes.forEach(node => {
-                    const label = (node.data.label as string) || '';
-                    if (label && metadata && metadata[label]) node.data.metadata = metadata[label];
-                });
+            // First attempt to parse
+            try {
+                const { nodes: parsedNodes, edges: parsedEdges } = await parseMermaid(mermaidCode);
+                const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(parsedNodes, parsedEdges);
+                setNodes(layoutedNodes);
+                setEdges(layoutedEdges);
+
+                if (metadata) {
+                    parsedNodes.forEach(node => {
+                        const label = (node.data.label as string) || '';
+                        if (label && metadata && metadata[label]) node.data.metadata = metadata[label];
+                    });
+                }
+            } catch (initialError) {
+                // If parsing fails, try to Auto-Fix if we have an API key
+                const errorMessage = initialError instanceof Error ? initialError.message : 'Error processing code';
+
+                if (onlineProvider === 'gemini' && apiKey) {
+                    console.log('Parsing failed, attempting Auto-Fix...');
+                    try {
+                        const { fixDiagram } = await import('../lib/aiService');
+                        const fixedCode = await fixDiagram(mermaidCode, apiKey, errorMessage);
+
+                        if (fixedCode && fixedCode !== mermaidCode) {
+                            setCode(fixedCode);
+                            // Retry parsing with fixed code
+                            const { nodes: newNodes, edges: newEdges } = await parseMermaid(fixedCode);
+                            const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, newEdges);
+                            setNodes(layoutedNodes);
+                            setEdges(layoutedEdges);
+                            return; // Success!
+                        }
+                    } catch (fixError) {
+                        console.warn('Auto-Fix failed:', fixError);
+                        // Fall through to throw original error
+                    }
+                }
+                throw initialError;
             }
 
-            const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(parsedNodes, parsedEdges);
-            setNodes(layoutedNodes);
-            setEdges(layoutedEdges);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error processing code';
             setError(errorMessage);
@@ -141,59 +175,19 @@ export function CodeEditor() {
         } finally {
             setLoading(false);
         }
-    }, [code, inputType, ollamaUrl, modelName, aiMode, onlineProvider, apiKey, setNodes, setEdges, setLoading, setError, setSourceCode]);
+    }, [code, inputType, ollamaUrl, modelName, aiMode, onlineProvider, apiKey, setNodes, setEdges, setLoading, setError, setSourceCode, setCode]);
 
-    const [suggestion, setSuggestion] = useState<string | null>(null);
 
-    const handleSuggest = useCallback(async () => {
-        if (!code.trim()) return;
-        setLoading(true);
-        setError(null);
-        setSuggestion(null);
 
-        try {
-            const result = await suggestFix(code, ollamaUrl, modelName, aiMode, onlineProvider, apiKey);
-            if (result.success && result.mermaidCode) {
-                setCode(result.mermaidCode);
-                setSuggestion(result.explanation || 'Code improved');
-                setTimeout(() => setSuggestion(null), 5000);
-            } else {
-                throw new Error(result.error || 'Could not get suggestion');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Suggestion failed');
-        } finally {
-            setLoading(false);
-        }
-    }, [code, ollamaUrl, modelName, aiMode, onlineProvider, apiKey, setLoading, setError]);
 
-    // Click on node ID in code to highlight on canvas
-    const handleEditorClick = useCallback(() => {
-        if (!editorRef.current) return;
 
-        const position = editorRef.current.getPosition();
-        if (!position) return;
+    // Handle Editor mount
+    const handleEditorMount = useCallback((editor: any, monaco: any) => {
+        editorRef.current = editor;
+        monacoRef.current = monaco;
 
-        const line = editorRef.current.getModel()?.getLineContent(position.lineNumber);
-        if (!line) return;
-
-        // Extract node ID from line (e.g., "A1[Label]" -> find node with label "Label")
-        const labelMatch = line.match(/\[([^\]]+)\]/) || line.match(/\(([^)]+)\)/) || line.match(/\{([^}]+)\}/);
-        if (labelMatch) {
-            const label = labelMatch[1];
-            const matchingNode = nodes.find(n => (n.data.label as string)?.includes(label));
-            if (matchingNode) {
-                setSelectedNode(matchingNode);
-            }
-        }
-    }, [nodes, setSelectedNode]);
-
-    // Define themes once on mount, but update selection on theme change
-    useEffect(() => {
-        if (!monacoRef.current) return;
-
-        // Define Dark Theme
-        monacoRef.current.editor.defineTheme('architect-dark', {
+        // Define themes
+        monaco.editor.defineTheme('architect-dark', {
             base: 'vs-dark',
             inherit: true,
             rules: [
@@ -211,162 +205,66 @@ export function CodeEditor() {
                 'editor.lineHighlightBackground': '#1e293b',
                 'editor.selectionBackground': '#334155',
                 'editorCursor.foreground': '#60a5fa',
+                'editor.lineHighlightBorder': '#00000000', // No border for line highlight
             }
         });
 
-        // Define Light Theme
-        monacoRef.current.editor.defineTheme('architect-light', {
+        monaco.editor.defineTheme('architect-light', {
             base: 'vs',
             inherit: true,
             rules: [
-                { token: 'keyword', foreground: '2563eb', fontStyle: 'bold' }, // Blue-600
-                { token: 'comment', foreground: '94a3b8', fontStyle: 'italic' }, // Slate-400
-                { token: 'string', foreground: '059669' }, // Emerald-600
-                { token: 'number', foreground: 'd97706' }, // Amber-600
-                { token: 'type', foreground: '9333ea' }, // Purple-600
+                { token: 'keyword', foreground: '2563eb', fontStyle: 'bold' },
+                { token: 'comment', foreground: '94a3b8', fontStyle: 'italic' },
+                { token: 'string', foreground: '059669' },
+                { token: 'number', foreground: 'd97706' },
+                { token: 'type', foreground: '9333ea' },
             ],
             colors: {
-                'editor.background': '#f8fafc', // Slate-50
-                'editor.foreground': '#334155', // Slate-700
-                'editorLineNumber.foreground': '#cbd5e1', // Slate-300
-                'editorLineNumber.activeForeground': '#2563eb', // Blue-600
-                'editor.lineHighlightBackground': '#f1f5f9', // Slate-100
-                'editor.selectionBackground': '#e2e8f0', // Slate-200
-                'editorCursor.foreground': '#2563eb', // Blue-600
+                'editor.background': '#f8fafc',
+                'editor.foreground': '#334155',
+                'editorLineNumber.foreground': '#cbd5e1',
+                'editorLineNumber.activeForeground': '#2563eb',
+                'editor.lineHighlightBackground': '#f1f5f9',
+                'editor.selectionBackground': '#e2e8f0',
+                'editorCursor.foreground': '#2563eb',
+                'editor.lineHighlightBorder': '#00000000',
             }
         });
 
-        monacoRef.current.editor.setTheme(theme === 'dark' ? 'architect-dark' : 'architect-light');
+        monaco.editor.setTheme(theme === 'dark' ? 'architect-dark' : 'architect-light');
+
     }, [theme]);
 
-    const handleEditorMount = useCallback((editor: any, monaco: any) => {
-        editorRef.current = editor;
-        monacoRef.current = monaco;
-        // Initial theme set handled by useEffect
-    }, []);
+    // Update theme when it changes
+    useEffect(() => {
+        if (monacoRef.current) {
+            monacoRef.current.editor.setTheme(theme === 'dark' ? 'architect-dark' : 'architect-light');
+        }
+    }, [theme]);
 
     return (
-        <div className="h-full flex flex-col gap-4 animate-slide-up">
-            {/* Editor Container with Badges */}
-            <div className={`flex-1 rounded-2xl overflow-hidden border relative group shadow-inner transition-colors ${theme === 'dark' ? 'bg-[#0B1221] border-white/5' : 'bg-slate-50 border-slate-200'
-                }`}>
-                {/* Internal Badges */}
-                <div className="absolute top-4 left-4 z-10 pointer-events-none">
-                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 backdrop-blur-md">
-                        Mermaid
-                    </span>
-                </div>
-                <div className="absolute top-4 right-4 z-10">
-                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-white/5 text-slate-400 border border-white/10 backdrop-blur-md">
-                        Manual
-                    </span>
-                </div>
-                <Editor
-                    height="100%"
-                    defaultLanguage="markdown"
-                    // theme prop is controlled by monaco.editor.setTheme
-                    options={{
-                        minimap: { enabled: false },
-                        fontSize: 13,
-                        lineNumbers: 'on',
-                        padding: { top: 50, bottom: 20 },
-                        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                        fontLigatures: true,
-                        renderLineHighlight: 'all',
-                        scrollbar: {
-                            vertical: 'visible',
-                            horizontal: 'visible',
-                            useShadows: false,
-                            verticalSliderSize: 6,
-                            horizontalSliderSize: 6
-                        },
-                        lineHeight: 1.7,
-                        cursorSmoothCaretAnimation: 'on',
-                        smoothScrolling: true,
-                        contextmenu: false,
-                        fixedOverflowWidgets: true,
-                        wordWrap: 'on',
-                        glyphMargin: true,
-                    }}
-                    value={code}
-                    onChange={handleCodeChange}
-                    onMount={handleEditorMount}
-                />
+        <div className="h-full flex flex-col gap-4 animate-slide-up relative">
+            <MonacoWrapper
+                code={code}
+                onChange={handleCodeChange}
+                onMount={handleEditorMount}
+                theme={(theme === 'light' || theme === 'dark') ? theme : 'dark'}
+                syntaxErrors={syntaxErrors}
+                setCode={setCode}
+            />
 
-                {/* Floating Action Buttons */}
-                <div className="absolute top-4 right-24 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <button
-                        onClick={() => setCode(SAMPLE_MERMAID)}
-                        className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white transition-all backdrop-blur-md shadow-lg"
-                        title="Load Sample"
-                    >
-                        <FileText className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                        onClick={() => setCode('')}
-                        className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-all backdrop-blur-md shadow-lg"
-                        title="Clear"
-                    >
-                        <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                </div>
+            <EditorToolbar
+                handleGenerate={handleGenerate}
+                isLoading={isLoading}
+                hasCode={!!code.trim()}
 
-                {/* Syntax Errors */}
-                {syntaxErrors.length > 0 && (
-                    <div className="absolute bottom-4 left-4 right-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl animate-fade-in">
-                        <div className="flex items-start gap-2">
-                            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                            <div>
-                                <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Syntax Error</p>
-                                <p className="text-[11px] text-red-300 mt-1">{syntaxErrors[0].message}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
-                {/* AI Suggestion Toast */}
-                {suggestion && (
-                    <div className="absolute bottom-4 left-4 right-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl animate-fade-in z-20">
-                        <div className="flex items-center gap-3">
-                            <Lightbulb className="w-4 h-4 text-blue-400 shrink-0" />
-                            <p className="text-[11px] text-blue-200 font-medium leading-relaxed">{suggestion}</p>
-                        </div>
-                    </div>
-                )}
-            </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-4 pt-2">
-                <button
-                    onClick={handleSuggest}
-                    disabled={!code.trim() || isLoading}
-                    className="flex-1 py-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
-                >
-                    {isLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                    ) : (
-                        <>
-                            <Lightbulb className="w-4 h-4 text-slate-400 group-hover:text-yellow-400 transition-colors" />
-                            <span className="text-[11px] font-black uppercase tracking-wider">AI Fix</span>
-                        </>
-                    )}
-                </button>
+            />
 
-                <button
-                    onClick={handleGenerate}
-                    disabled={!code.trim() || isLoading}
-                    className="flex-[1.5] py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-900/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-white/70" />
-                    ) : (
-                        <>
-                            <Zap className="w-4 h-4 text-white" />
-                            <span className="text-[11px] font-black uppercase tracking-wider">Visualize</span>
-                        </>
-                    )}
-                </button>
-            </div>
+
+
+
         </div>
     );
 }

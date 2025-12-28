@@ -1,4 +1,4 @@
-import { toPng } from 'html-to-image';
+import { toPng, toJpeg, toSvg } from 'html-to-image';
 import { type Node, type Edge } from '../store';
 
 export async function exportToPng(element: HTMLElement): Promise<void> {
@@ -24,7 +24,7 @@ export async function exportToPng(element: HTMLElement): Promise<void> {
 
 export async function exportToJpg(element: HTMLElement): Promise<void> {
     try {
-        const { toJpeg } = await import('html-to-image');
+
         const dataUrl = await toJpeg(element, {
             backgroundColor: '#020617',
             quality: 0.95,
@@ -44,23 +44,23 @@ export async function exportToJpg(element: HTMLElement): Promise<void> {
     }
 }
 
-export function exportToSvg(nodes: Node[], _edges: Edge[]): void {
-    // Basic SVG export logic (simplified for React Flow)
-    const svgContent = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
-            <rect width="100%" height="100%" fill="#020617" />
-            <text x="20" y="40" fill="white" font-family="sans-serif" font-size="16">Architecture Diagram Export (SVG)</text>
-            <!-- Simplified representation -->
-            <g transform="translate(50,100)">
-                ${nodes.map(n => `<rect x="${n.position.x}" y="${n.position.y}" width="150" height="60" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2" />`).join('')}
-                ${nodes.map(n => `<text x="${n.position.x + 75}" y="${n.position.y + 35}" fill="white" font-size="12" text-anchor="middle" font-family="sans-serif">${(n.data as any).label || n.id}</text>`).join('')}
-            </g>
-        </svg>
-    `;
-    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    downloadFile(url, `diagram-${getTimestamp()}.svg`);
-    URL.revokeObjectURL(url);
+export async function exportToSvg(element: HTMLElement): Promise<void> {
+    try {
+        const dataUrl = await toSvg(element, {
+            backgroundColor: '#020617',
+            filter: (node) => {
+                const className = node.className?.toString() || '';
+                return !className.includes('react-flow__controls') &&
+                    !className.includes('react-flow__minimap') &&
+                    !className.includes('react-flow__panel');
+            }
+        });
+
+        downloadFile(dataUrl, `diagram-${getTimestamp()}.svg`);
+    } catch (error) {
+        console.error('Failed to export SVG:', error);
+        throw error;
+    }
 }
 
 export function exportToTxt(nodes: Node[], edges: Edge[]): void {

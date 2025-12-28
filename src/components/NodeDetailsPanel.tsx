@@ -4,7 +4,6 @@ import {
     FileText, Activity, Zap, Cpu, Wifi, BarChart3
 } from 'lucide-react';
 import { useMemo } from 'react';
-import { VisualOrganizerPanel } from './VisualOrganizerPanel';
 import { SmartGuide } from './SmartGuide';
 
 export function NodeDetailsPanel() {
@@ -37,8 +36,6 @@ export function NodeDetailsPanel() {
                 <div className="mt-8 mb-6">
                     <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
                 </div>
-
-                <VisualOrganizerPanel />
 
                 <div className="mt-auto">
                     <SmartGuide />
@@ -102,6 +99,12 @@ export function NodeDetailsPanel() {
                         className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-sm font-semibold outline-none focus:border-blue-500/50 transition-all text-slate-800 dark:text-primary cursor-pointer appearance-none"
                     >
                         <option value="default">Default</option>
+                        <option value="group">Group / Container</option>
+                        <option value="ai">AI Director / Agent</option>
+                        <option value="team">Human Team</option>
+                        <option value="platform">External Platform</option>
+                        <option value="data">Data / Analytics</option>
+                        <option value="tech">Tech Infrastructure</option>
                         <option value="start">Start</option>
                         <option value="end">End</option>
                         <option value="decision">Decision</option>
