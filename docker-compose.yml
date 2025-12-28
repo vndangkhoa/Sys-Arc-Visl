@@ -7,9 +7,11 @@ services:
     restart: always
     ports:
       - "8338:80"
+    # Optional if you want to have Ollama running in a container
     depends_on:
       - ollama
 
+  # Optional if you want to have Ollama running in a container
   ollama:
     image: ollama/ollama:latest
     container_name: ollama-service
@@ -20,6 +22,7 @@ services:
       - ./ollama_data:/root/.ollama
     environment:
       - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_ORIGINS="*"
     # NVIDIA GPU Support Configuration
     deploy:
       resources:
