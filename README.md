@@ -141,9 +141,7 @@ kv-graph/
 - [x] Undo/Redo history
 - [x] API for programmatic generation
 - [x] Plugin system (Foundation)
-- [ ] Real-time collaboration
-- [ ] Custom node shapes
-- [ ] Template library
+
 
 ## 📄 License
 
