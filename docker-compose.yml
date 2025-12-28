@@ -6,7 +6,7 @@ services:
     container_name: kv-graph-web
     restart: always
     ports:
-      - "8080:80"
+      - "8338:80"
     depends_on:
       - ollama
 
