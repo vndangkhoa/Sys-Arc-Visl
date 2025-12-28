@@ -91,7 +91,7 @@ export class VisionService {
 
             // Task: Detailed Captioning is best for understanding diagrams
             const text = '<MORE_DETAILED_CAPTION>';
-            const inputs = await this.processor(text, image);
+            const inputs = await this.processor(image, text);
 
             const generatedIds = await this.model.generate({
                 ...inputs,
