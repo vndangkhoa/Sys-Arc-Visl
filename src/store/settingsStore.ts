@@ -55,7 +55,9 @@ const initialSettings = {
     aiMode: getInitialAiMode(),
     onlineProvider: 'openai' as OnlineProvider,
     apiKey: '',
-    ollamaUrl: 'http://localhost:11434',
+    ollamaUrl: typeof window !== 'undefined' && window.location.protocol === 'https:'
+        ? window.location.origin
+        : 'http://localhost:11434',
     modelName: 'llama3.2-vision',
     theme: getInitialTheme(),
 };
