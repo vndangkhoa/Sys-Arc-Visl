@@ -4,7 +4,7 @@ interface EditorToolbarProps {
     handleGenerate: () => void;
     isLoading: boolean;
     hasCode: boolean;
-    hasCode: boolean;
+
 }
 
 import { usePluginStore } from '../../store/pluginStore';
