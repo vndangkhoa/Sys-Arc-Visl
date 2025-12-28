@@ -4,10 +4,10 @@ import { FlowCanvas } from '../components/FlowCanvas';
 import { NodeDetailsPanel } from '../components/NodeDetailsPanel';
 import InteractiveLegend from '../components/InteractiveLegend';
 import OnboardingTour from '../components/OnboardingTour';
-import { useFlowStore, useSettingsStore } from '../store';
+import { useFlowStore } from '../store';
 import { useMobileDetect } from '../hooks/useMobileDetect';
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { PanelLeft, PanelRight, Zap, Sparkles, Minimize2, X, Cpu, Cloud, Server } from 'lucide-react';
+import { PanelLeft, PanelRight, Zap, Sparkles, Minimize2, X } from 'lucide-react';
 import { OrchestratorLoader } from '../components/ui/OrchestratorLoader';
 import { EditorHeader } from '../components/editor/EditorHeader';
 import { VisualOrganizerFAB } from '../components/VisualOrganizerFAB';
@@ -18,7 +18,6 @@ export function Editor() {
     useDiagramAPI();
 
     const { nodes, isLoading, leftPanelOpen, setLeftPanelOpen, rightPanelOpen, setRightPanelOpen, focusMode, setFocusMode, mobileEditorOpen, setMobileEditorOpen } = useFlowStore();
-    const { aiMode, onlineProvider } = useSettingsStore();
     const { isMobile } = useMobileDetect();
     const [sidebarWidth, setSidebarWidth] = useState(384); // Default w-96
     const isResizing = useRef(false);

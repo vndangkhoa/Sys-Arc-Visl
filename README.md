@@ -7,12 +7,14 @@
 ## ✨ Features
 
 - **🤖 AI-Powered Generation** — Generates complex diagrams from text prompts using **Llama 3** (local browser) or Cloud AI.
-- **�️ Vision-to-Diagram** — **Florence-2** powered analysis converts screenshots and sketches into editable layouts entirely in the browser.
-- **�️ Unified Toolkit** — A clean, consolidated toolbar for critical actions (Zoom, Layout, Pan/Select) keeps the canvas "void-like".
+- **👁️ Vision-to-Diagram** — **Florence-2** powered analysis converts screenshots and sketches into editable layouts entirely in the browser.
+- **🖌️ Unified Toolkit** — A clean, consolidated toolbar for critical actions (Zoom, Layout, Pan/Select) keeps the canvas "void-like".
 - **🗺️ MiniMap Overlay** — Navigational aid for large diagrams, unobtrusively positioned in the bottom-right.
 - **💡 Smart Guidance** — Context-aware tips and rotation suggestions when looking at empty space.
-- **� Theme-Aware Code Editor** — Monaco editor that automatically syncs with your Light/Dark aesthetic.
+- **📝 Theme-Aware Code Editor** — Monaco editor that automatically syncs with your Light/Dark aesthetic.
 - **🎨 "Void" Aesthetic** — Premium glassmorphism design with deep blur effects and cinematic transitions.
+- **⏪ Undo/Redo** — Full history support with time-travel capabilities for safe editing.
+- **📐 Optimized Layout** — Enhanced Dagre layout engine with smart spacing to prevent overlapping text.
 
 ## 🚀 Quick Start
 
@@ -38,7 +40,7 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-## � AI Configuration
+## 🧠 AI Configuration
 
 KV-Graph supports a **Local-First** AI architecture, running powerful models directly in your browser via WebGPU.
 
@@ -62,6 +64,16 @@ Connect to external providers for enhanced capabilities.
 | Ollama | Custom | Local URL |
 
 Configure your AI provider in **Settings** (⚙️ icon).
+
+## 🐳 Docker Support
+
+Run KV-Graph locally using Docker:
+
+```bash
+docker-compose up -d
+```
+
+Open [http://localhost:8338](http://localhost:8338) in your browser.
 
 ## 📁 Project Structure
 
@@ -108,7 +120,7 @@ kv-graph/
 |--------|-------------|
 | **PNG** | High-resolution raster image (3x pixel ratio) |
 | **JPG** | Compressed image format |
-| **SVG** | Vector graphics (scalable) |
+| **SVG** | Vector graphics (scalable, high-fidelity) |
 | **JSON** | Full diagram data (nodes, edges, metadata) |
 | **Mermaid** | Mermaid.js code for use elsewhere |
 | **React** | Complete React component with React Flow |
@@ -124,37 +136,14 @@ kv-graph/
 | `Delete/Backspace` | Delete selected node |
 | `Escape` | Deselect / Close panel |
 
-## 🎨 Theming
-
-KV-Graph features a premium glassmorphism design with:
-
-- **Dark Mode** — Deep void backgrounds with subtle gradients
-- **Light Mode** — Clean, minimal aesthetics
-- **Glass Panels** — Frosted glass effects with blur
-- **Smooth Animations** — Cinematic transitions
-
-## 📜 Scripts
-
-```bash
-# Development
-npm run dev          # Start dev server with HMR
-
-# Production
-npm run build        # Build for production
-npm run preview      # Preview production build
-
-# Code Quality
-npm run lint         # Run ESLint
-```
-
 ## 🗺️ Roadmap
 
-- [ ] Undo/Redo history
+- [x] Undo/Redo history
+- [x] API for programmatic generation
+- [x] Plugin system (Foundation)
 - [ ] Real-time collaboration
 - [ ] Custom node shapes
 - [ ] Template library
-- [ ] API for programmatic diagram generation
-- [ ] Plugin system
 
 ## 📄 License
 
