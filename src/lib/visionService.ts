@@ -95,9 +95,10 @@ export class VisionService {
             // Construct prompts using the processor's method (required for Florence-2)
             const prompts = this.processor.construct_prompts(task);
 
-            // Pre-process the image and text inputs (image first, prompts second)
+            // Pre-process the image and text inputs
+            // Processor expects batch input, so wrap single image in array
             if (!this.processor) throw new Error('Processor is undefined');
-            const inputs = await this.processor(image, prompts);
+            const inputs = await this.processor([image], prompts);
 
             const generatedIds = await this.model.generate({
                 ...inputs,
