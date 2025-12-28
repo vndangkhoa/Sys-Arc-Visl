@@ -82,8 +82,8 @@ export function ImageUpload() {
                 return;
             }
         } else if (aiMode === 'browser') {
-            setError('Browser mode does not support image analysis yet. Please use Cloud mode with an API key in Settings.');
-            return;
+            // Browser AI uses Vision Service (Florence-2) for image analysis
+            // No external configuration needed - models run in browser
         }
 
         setLoading(true);
