@@ -91,9 +91,8 @@ export class VisionService {
 
             // Task: Detailed Captioning is best for understanding diagrams
             const text = '<MORE_DETAILED_CAPTION>';
-            console.log('Analyzing image:', { width: image.width, height: image.height, channels: image.channels });
-            // Pass image as an array to ensure it's iterable if internal logic expects list
-            const inputs = await this.processor(image, text);
+            // Pass image as an array to ensure it's iterable for transformers.js preprocessing
+            const inputs = await this.processor([image], text);
 
             const generatedIds = await this.model.generate({
                 ...inputs,
