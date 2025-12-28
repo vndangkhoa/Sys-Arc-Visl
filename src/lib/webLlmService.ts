@@ -7,8 +7,8 @@ export type WebLlmProgress = {
     timeElapsed: number;
 };
 
-// Latest "Tiny" model with high instruction adherence
-const DEFAULT_MODEL = "Llama-3.2-1B-Instruct-q4f32_1-MLC";
+// Qwen3-0.6B is fast and works well with simple Mermaid generation prompts
+const DEFAULT_MODEL = "Qwen3-0.6B-q4f32_1-MLC";
 
 export class WebLlmService {
     private engine: MLCEngine | null = null;
@@ -73,21 +73,31 @@ export class WebLlmService {
             throw new Error("WebLLM Engine not initialized. Please load the model first.");
         }
 
+        console.log('WebLLM: Creating completion...');
+        const startTime = performance.now();
         const completion = await this.engine.chat.completions.create({
             messages,
             stream: true,
-            temperature: 0.1, // Low temp for code/logic generation
-            max_tokens: 4096, // Sufficient for diagrams
+            temperature: 0, // Deterministic output for code
+            max_tokens: 512, // Mermaid code is compact
+            top_p: 0.9, // Faster sampling
+            repetition_penalty: 1.1, // Avoid repetitive output
         });
+        console.log('WebLLM: Completion created, streaming...');
 
         // Create a generator to stream chunks easily
         async function* streamGenerator() {
+            let tokenCount = 0;
             for await (const chunk of completion) {
                 const content = chunk.choices[0]?.delta?.content || "";
                 if (content) {
+                    tokenCount++;
+                    if (tokenCount === 1) console.log('WebLLM: First token received');
                     yield content;
                 }
             }
+            const endTime = performance.now();
+            console.log(`WebLLM: Generation complete (${tokenCount} tokens, ${((endTime - startTime) / 1000).toFixed(1)}s)`);
         }
 
         return streamGenerator();

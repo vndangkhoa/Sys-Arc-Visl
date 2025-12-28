@@ -277,7 +277,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                     </div>
                                     <div>
                                         <h4 className="text-[11px] font-bold text-violet-200">Neural Engine (Text)</h4>
-                                        <p className="text-[9px] text-violet-400/60">Llama-3.2-1B-Instruct-q4f32_1</p>
+                                        <p className="text-[9px] text-violet-400/60">Qwen3-0.6B (Fast!)</p>
                                     </div>
                                     {isBrowserReady && <div className="ml-auto w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
                                 </div>
@@ -321,7 +321,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                     </div>
                                     <div>
                                         <h4 className="text-[11px] font-bold text-violet-200">Vision Engine (Image)</h4>
-                                        <p className="text-[9px] text-violet-400/60">Florence-2-base (~200MB)</p>
+                                        <p className="text-[9px] text-violet-400/60">ViT-GPT2 (~300MB, Fast!)</p>
                                     </div>
                                     {isVisionReady && <div className="ml-auto w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
                                 </div>

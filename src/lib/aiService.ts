@@ -241,7 +241,31 @@ async function callBrowserAI(
     messages: any[],
     customSystemPrompt?: string
 ): Promise<AIResponse> {
-    const activePrompt = customSystemPrompt || SYSTEM_PROMPT;
+    // Simplified prompt for browser AI - just ask for Mermaid code directly
+    const BROWSER_AI_PROMPT = `You are a system design diagram generator. Generate ONLY Mermaid flowchart code.
+
+RULES:
+- Start with "graph TD" or "graph LR"  
+- Use simple node IDs like A, B, C
+- Use subgraph for grouping
+- NO explanations, NO markdown, NO JSON - ONLY the mermaid code
+
+Example output:
+graph TD
+    subgraph Frontend
+        A[Web App]
+        B[Mobile App]
+    end
+    subgraph Backend
+        C[API Server]
+        D[(Database)]
+    end
+    A --> C
+    B --> C
+    C --> D
+
+Now generate mermaid code for the user's request. Output ONLY the mermaid code, nothing else.`;
+
     try {
         if (!webLlmService.getStatus().isReady) {
             throw new Error('Browser model is not loaded. Please initialize it in Settings.');
@@ -261,6 +285,7 @@ async function callBrowserAI(
                 // Analyze the first image
                 // Assuming msg.images[0] is base64 string
                 const imageDescription = await visionService.analyzeImage(msg.images[0]);
+                console.log('Vision description:', imageDescription);
 
                 // Augment the prompt with the description
                 content = `${content}\n\n[VISUAL CONTEXT FROM IMAGE]:\n${imageDescription}\n\n(Use this visual description to generate the Mermaid code.)`;
@@ -273,32 +298,67 @@ async function callBrowserAI(
         }
 
         const fullMessages = [
-            { role: 'system' as const, content: activePrompt },
+            { role: 'system' as const, content: BROWSER_AI_PROMPT },
             ...processedMessages
         ];
 
+        console.log('Starting WebLLM text generation...');
         const generator = await webLlmService.chat(fullMessages);
         let fullContent = "";
 
         for await (const chunk of generator) {
             fullContent += chunk;
         }
+        console.log('WebLLM raw output:', fullContent.substring(0, 500)); // First 500 chars
 
-        // Parse JSON
+        // Clean up the output - Browser AI outputs Mermaid code directly
         let cleanContent = fullContent.trim();
+
+        // Strip Qwen3's <think> reasoning tags if present
+        cleanContent = cleanContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        // Also remove incomplete <think> tags (if model was cut off)
+        cleanContent = cleanContent.replace(/<think>[\s\S]*$/g, '').trim();
+
+        // Remove markdown code blocks if present
         if (cleanContent.startsWith('```')) {
-            cleanContent = cleanContent.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+            cleanContent = cleanContent.replace(/^```(?:mermaid|json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
         }
 
-        const parsed = JSON.parse(cleanContent);
+        // Try to extract mermaid code - look for "graph" pattern
+        const mermaidMatch = cleanContent.match(/graph\s+(?:TB|TD|LR|RL|BT)[\s\S]*/);
+        if (mermaidMatch) {
+            console.log('Extracted mermaid code successfully');
+            return {
+                success: true,
+                mermaidCode: mermaidMatch[0].trim()
+            };
+        }
+
+        // Fallback: try to parse as JSON if it looks like JSON
+        if (cleanContent.startsWith('{')) {
+            try {
+                const parsed = JSON.parse(cleanContent);
+                console.log('Parsed as JSON:', Object.keys(parsed));
+                return {
+                    success: true,
+                    mermaidCode: parsed.mermaidCode,
+                    metadata: parsed.metadata,
+                    analysis: parsed.analysis
+                };
+            } catch (e) {
+                // Not valid JSON, continue
+            }
+        }
+
+        // If we get here, we couldn't extract mermaid code
+        console.error('Could not extract mermaid code from:', cleanContent.substring(0, 500));
         return {
-            success: true,
-            mermaidCode: parsed.mermaidCode,
-            metadata: parsed.metadata,
-            analysis: parsed.analysis // Forward analysis field if present
+            success: false,
+            error: 'Could not generate valid Mermaid diagram code'
         };
 
     } catch (error) {
+        console.error('Browser AI error:', error);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Browser model logic failed'
