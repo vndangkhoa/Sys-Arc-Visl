@@ -90,11 +90,14 @@ export class VisionService {
             const image = await RawImage.fromURL(cleanBase64);
 
             // Task: Detailed Captioning is best for understanding diagrams
-            const text = '<MORE_DETAILED_CAPTION>';
-            // Pass arguments as object to avoid positional ambiguity
-            // Florence-2 processor typically expects 'images' and 'text'
+            const task = '<MORE_DETAILED_CAPTION>';
+
+            // Construct prompts using the processor's method (required for Florence-2)
+            const prompts = this.processor.construct_prompts(task);
+
+            // Pre-process the image and text inputs (image first, prompts second)
             if (!this.processor) throw new Error('Processor is undefined');
-            const inputs = await this.processor({ text, images: [image] });
+            const inputs = await this.processor(image, prompts);
 
             const generatedIds = await this.model.generate({
                 ...inputs,
@@ -109,7 +112,7 @@ export class VisionService {
             // Florence-2 output format usually includes the task token
             const parsedAnswer = this.processor.post_process_generation(
                 generatedText,
-                text,
+                task,
                 image.size
             );
 
