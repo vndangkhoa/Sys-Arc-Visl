@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useStore } from 'zustand';
+
 import { useFlowStore } from '../store';
-import { useDiagramStore } from '../store/diagramStore';
+
 import { parseMermaid, detectInputType } from '../lib/mermaidParser';
 import { getLayoutedElements } from '../lib/layoutEngine';
 import { interpretText } from '../lib/aiService';

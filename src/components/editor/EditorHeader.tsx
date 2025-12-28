@@ -20,7 +20,7 @@ export function EditorHeader() {
         theme, toggleTheme,
         focusMode, setFocusMode,
         saveDiagram,
-        aiMode, onlineProvider
+        aiMode
     } = useFlowStore();
     const { isMobile } = useMobileDetect();
 
