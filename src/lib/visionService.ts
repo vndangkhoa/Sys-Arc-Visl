@@ -91,8 +91,10 @@ export class VisionService {
 
             // Task: Detailed Captioning is best for understanding diagrams
             const text = '<MORE_DETAILED_CAPTION>';
-            // Pass image as an array to ensure it's iterable for transformers.js preprocessing
-            const inputs = await this.processor([image], text);
+            // Pass arguments as object to avoid positional ambiguity
+            // Florence-2 processor typically expects 'images' and 'text'
+            if (!this.processor) throw new Error('Processor is undefined');
+            const inputs = await this.processor({ text, images: [image] });
 
             const generatedIds = await this.model.generate({
                 ...inputs,
