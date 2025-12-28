@@ -238,8 +238,7 @@ async function callLocalAI(
 
 
 async function callBrowserAI(
-    messages: any[],
-    customSystemPrompt?: string
+    messages: any[]
 ): Promise<AIResponse> {
     // Simplified prompt for browser AI - just ask for Mermaid code directly
     const BROWSER_AI_PROMPT = `You are a system design diagram generator. Generate ONLY Mermaid flowchart code.
@@ -392,7 +391,7 @@ export async function analyzeImage(
         return callOnlineAI(onlineProvider as any, apiKey || '', ollamaUrl, messages, prompt);
     }
     if (aiMode === 'browser') {
-        return callBrowserAI(messages, prompt);
+        return callBrowserAI(messages);
     }
     return callLocalAI(ollamaUrl, model, messages, prompt);
 }
@@ -417,7 +416,7 @@ export async function interpretText(
         return callOnlineAI(onlineProvider as any, apiKey || '', ollamaUrl, messages, prompt);
     }
     if (aiMode === 'browser') {
-        return callBrowserAI(messages, prompt);
+        return callBrowserAI(messages);
     }
     return callLocalAI(ollamaUrl, model, messages, prompt);
 }
@@ -462,7 +461,7 @@ export async function suggestFix(
         if (aiMode === 'online' && onlineProvider) {
             response = await callOnlineAI(onlineProvider as any, apiKey || '', ollamaUrl, messages, SUGGEST_PROMPT);
         } else if (aiMode === 'browser') {
-            response = await callBrowserAI(messages, SUGGEST_PROMPT);
+            response = await callBrowserAI(messages);
         } else {
             response = await callLocalAI(ollamaUrl, modelName, messages, SUGGEST_PROMPT);
         }
@@ -509,7 +508,7 @@ export async function analyzeVisualLayout(
         if (aiMode === 'online' && onlineProvider) {
             response = await callOnlineAI(onlineProvider as any, apiKey || '', ollamaUrl, messages, VISUAL_ANALYSIS_PROMPT);
         } else if (aiMode === 'browser') {
-            response = await callBrowserAI(messages, VISUAL_ANALYSIS_PROMPT);
+            response = await callBrowserAI(messages);
         } else {
             response = await callLocalAI(ollamaUrl, modelName, messages, VISUAL_ANALYSIS_PROMPT);
         }
