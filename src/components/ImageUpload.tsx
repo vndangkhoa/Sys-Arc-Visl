@@ -66,6 +66,8 @@ export function ImageUpload() {
     }, [handleFile]);
 
     const handleGenerate = useCallback(async () => {
+        console.log('handleGenerate called', { aiMode, preview: !!preview, svgContent: !!svgContent, isLoading });
+
         // Validate AI configuration before processing
         if (aiMode === 'offline') {
             if (!ollamaUrl) {
@@ -86,6 +88,7 @@ export function ImageUpload() {
             // No external configuration needed - models run in browser
         }
 
+        console.log('Validation passed, starting processing...');
         setLoading(true);
         setError(null);
 
