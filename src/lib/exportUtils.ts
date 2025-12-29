@@ -1,10 +1,54 @@
 import { toPng, toJpeg, toSvg } from 'html-to-image';
 import { type Node, type Edge } from '../store';
 
+// Robust cross-browser file download function using data URLs for better Chrome compatibility
+function saveFile(blob: Blob, filename: string): void {
+    console.log(`[Export] Starting download: ${filename}`);
+
+    // Convert blob to data URL for better download attribute support
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+
+        // Create an anchor element
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = dataUrl;
+        a.download = filename;
+
+        // Append to body (required for Firefox)
+        document.body.appendChild(a);
+
+        // Trigger download
+        a.click();
+
+        // Cleanup after a delay
+        setTimeout(() => {
+            document.body.removeChild(a);
+        }, 100);
+
+        console.log(`[Export] Download triggered: ${filename}`);
+    };
+
+    reader.onerror = () => {
+        console.error(`[Export] Failed to read blob for: ${filename}`);
+    };
+
+    reader.readAsDataURL(blob);
+}
+
+// Get the current theme's background color
+function getThemeBackgroundColor(): string {
+    // Check if dark mode is active by looking at the document class
+    const isDark = document.documentElement.classList.contains('dark');
+    return isDark ? '#020617' : '#ffffff';
+}
+
 export async function exportToPng(element: HTMLElement): Promise<void> {
     try {
+        const backgroundColor = getThemeBackgroundColor();
         const dataUrl = await toPng(element, {
-            backgroundColor: '#020617',
+            backgroundColor,
             quality: 1,
             pixelRatio: 3,
             filter: (node) => {
@@ -15,7 +59,8 @@ export async function exportToPng(element: HTMLElement): Promise<void> {
             }
         });
 
-        downloadFile(dataUrl, `diagram-${getTimestamp()}.png`);
+        const blob = dataURLtoBlob(dataUrl);
+        saveFile(blob, `diagram-${getTimestamp()}.png`);
     } catch (error) {
         console.error('Failed to export PNG:', error);
         throw error;
@@ -24,9 +69,9 @@ export async function exportToPng(element: HTMLElement): Promise<void> {
 
 export async function exportToJpg(element: HTMLElement): Promise<void> {
     try {
-
+        const backgroundColor = getThemeBackgroundColor();
         const dataUrl = await toJpeg(element, {
-            backgroundColor: '#020617',
+            backgroundColor,
             quality: 0.95,
             pixelRatio: 2,
             filter: (node) => {
@@ -37,7 +82,8 @@ export async function exportToJpg(element: HTMLElement): Promise<void> {
             }
         });
 
-        downloadFile(dataUrl, `diagram-${getTimestamp()}.jpg`);
+        const blob = dataURLtoBlob(dataUrl);
+        saveFile(blob, `diagram-${getTimestamp()}.jpg`);
     } catch (error) {
         console.error('Failed to export JPG:', error);
         throw error;
@@ -46,8 +92,9 @@ export async function exportToJpg(element: HTMLElement): Promise<void> {
 
 export async function exportToSvg(element: HTMLElement): Promise<void> {
     try {
+        const backgroundColor = getThemeBackgroundColor();
         const dataUrl = await toSvg(element, {
-            backgroundColor: '#020617',
+            backgroundColor,
             filter: (node) => {
                 const className = node.className?.toString() || '';
                 return !className.includes('react-flow__controls') &&
@@ -56,7 +103,8 @@ export async function exportToSvg(element: HTMLElement): Promise<void> {
             }
         });
 
-        downloadFile(dataUrl, `diagram-${getTimestamp()}.svg`);
+        const blob = dataURLtoBlob(dataUrl);
+        saveFile(blob, `diagram-${getTimestamp()}.svg`);
     } catch (error) {
         console.error('Failed to export SVG:', error);
         throw error;
@@ -80,10 +128,8 @@ export function exportToTxt(nodes: Node[], edges: Edge[]): void {
         txt += `- ${sourceLabel} -> ${targetLabel} ${e.label ? `(${e.label})` : ''}\n`;
     });
 
-    const blob = new Blob([txt], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    downloadFile(url, `summary-${getTimestamp()}.txt`);
-    URL.revokeObjectURL(url);
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    saveFile(blob, `summary-${getTimestamp()}.txt`);
 }
 
 export function exportToJson(nodes: Node[], edges: Edge[]): void {
@@ -106,11 +152,8 @@ export function exportToJson(nodes: Node[], edges: Edge[]): void {
     };
 
     const jsonString = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-
-    downloadFile(url, `diagram-${getTimestamp()}.json`);
-    URL.revokeObjectURL(url);
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+    saveFile(blob, `diagram-${getTimestamp()}.json`);
 }
 
 export function exportToMermaid(nodes: Node[], edges: Edge[]): string {
@@ -178,22 +221,24 @@ export function exportToMermaid(nodes: Node[], edges: Edge[]): string {
 
 export function downloadMermaid(nodes: Node[], edges: Edge[]): void {
     const mermaid = exportToMermaid(nodes, edges);
-    const blob = new Blob([mermaid], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-
-    downloadFile(url, `diagram-${getTimestamp()}.mmd`);
-    URL.revokeObjectURL(url);
+    const blob = new Blob([mermaid], { type: 'text/plain;charset=utf-8' });
+    saveFile(blob, `diagram-${getTimestamp()}.mmd`);
 }
 
 function getTimestamp(): string {
     return new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
 }
 
-function downloadFile(url: string, filename: string): void {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+// Convert data URL to Blob for proper file download
+function dataURLtoBlob(dataUrl: string): Blob {
+    const arr = dataUrl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
 }

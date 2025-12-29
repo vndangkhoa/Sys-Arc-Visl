@@ -1,5 +1,5 @@
 
-import { env, pipeline, RawImage } from '@huggingface/transformers';
+import { env, AutoProcessor, AutoModel, RawImage } from '@huggingface/transformers';
 
 // Configure transformers.js
 env.allowLocalModels = false;
@@ -11,12 +11,13 @@ export type VisionProgress = {
     file?: string;
 };
 
-// ViT-GPT2 is the ONLY working model for browser-based image captioning
-// Other models (BLIP, Florence-2, LLaVA) are not supported by transformers.js
-const MODEL_ID = 'Xenova/vit-gpt2-image-captioning';
+// We use Florence-2-base for a good balance of speed and accuracy (~200MB - 400MB)
+// 'onnx-community/Florence-2-base-ft' is the modern standard for Transformers.js v3.
+const MODEL_ID = 'onnx-community/Florence-2-base-ft';
 
 export class VisionService {
-    private captioner: any = null;
+    private model: any = null;
+    private processor: any = null;
     private isLoading = false;
     private isReady = false;
 
@@ -45,10 +46,13 @@ export class VisionService {
 
         try {
             console.log('Loading Vision Model...');
-            if (onProgress) onProgress({ status: 'Loading Vision Model...' });
+            if (onProgress) onProgress({ status: 'Loading Processor...' });
 
-            // Use the pipeline API - much simpler and faster
-            this.captioner = await pipeline('image-to-text', MODEL_ID, {
+            this.processor = await AutoProcessor.from_pretrained(MODEL_ID);
+
+            if (onProgress) onProgress({ status: 'Loading Model (this may take a while)...' });
+
+            this.model = await AutoModel.from_pretrained(MODEL_ID, {
                 progress_callback: (progress: any) => {
                     if (onProgress && progress.status === 'progress') {
                         onProgress({
@@ -71,8 +75,8 @@ export class VisionService {
     }
 
     /**
-     * Analyzes an image (Base64 or URL) and returns a description.
-     * Uses vit-gpt2 for fast captioning.
+     * Analyzes an image (Base64 or URL) and returns a detailed description.
+     * We use the '<MORE_DETAILED_CAPTION>' task for Florence-2.
      */
     async analyzeImage(imageBase64: string): Promise<string> {
         if (!this.isReady) {
@@ -83,47 +87,32 @@ export class VisionService {
             // Handle data URL prefix if present
             const cleanBase64 = imageBase64.includes(',') ? imageBase64 : `data:image/png;base64,${imageBase64}`;
 
-            let image = await RawImage.fromURL(cleanBase64);
+            const image = await RawImage.fromURL(cleanBase64);
 
-            // Keep higher resolution for better detail detection
-            if (image.width > 512 || image.height > 512) {
-                image = await image.resize(512, 512);
-            }
+            // Task: Detailed Captioning is best for understanding diagrams
+            const text = '<MORE_DETAILED_CAPTION>';
+            const inputs = await this.processor(image, text);
 
-            console.log('Starting enhanced image analysis...');
-            const startTime = performance.now();
+            const generatedIds = await this.model.generate({
+                ...inputs,
+                max_new_tokens: 512, // Sufficient for a description
+            });
 
-            // Run multiple passes for more comprehensive description
-            const results = await Promise.all([
-                // Pass 1: Detailed description
-                this.captioner(image, {
-                    max_new_tokens: 150,
-                    num_beams: 4,  // Beam search for better quality
-                }),
-                // Pass 2: Alternative perspective
-                this.captioner(image, {
-                    max_new_tokens: 100,
-                    do_sample: true,
-                    temperature: 0.7,
-                }),
-            ]);
+            const generatedText = this.processor.batch_decode(generatedIds, {
+                skip_special_tokens: false,
+            })[0];
 
-            const endTime = performance.now();
-            console.log(`Vision analysis completed in ${((endTime - startTime) / 1000).toFixed(1)}s`);
+            // Post-process to extract the caption
+            // Florence-2 output format usually includes the task token
+            const parsedAnswer = this.processor.post_process_generation(
+                generatedText,
+                text,
+                image.size
+            );
 
-            // Combine descriptions for richer output
-            const caption1 = results[0]?.[0]?.generated_text || '';
-            const caption2 = results[1]?.[0]?.generated_text || '';
-
-            // If both are similar, use just one; otherwise combine
-            if (caption1.toLowerCase().includes(caption2.toLowerCase().substring(0, 20)) ||
-                caption2.toLowerCase().includes(caption1.toLowerCase().substring(0, 20))) {
-                return caption1.length > caption2.length ? caption1 : caption2;
-            }
-
-            const combined = `${caption1}. Additionally: ${caption2}`;
-            console.log('Enhanced description:', combined);
-            return combined;
+            // Access the dictionary result. For CAPTION tasks, it's usually under '<MORE_DETAILED_CAPTION>' or similar key
+            // Ideally post_process_generation returns { '<MORE_DETAILED_CAPTION>': "Description..." }
+            return parsedAnswer['<MORE_DETAILED_CAPTION>'] || typeof parsedAnswer === 'string' ? parsedAnswer : JSON.stringify(parsedAnswer);
 
         } catch (error) {
             console.error('Vision analysis failed:', error);

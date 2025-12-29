@@ -189,17 +189,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
             <div className={`fixed z-[9999] flex flex-col gap-4
                 ${isMobile
-                    ? 'left-4 right-4 top-16 max-h-[80vh] rounded-[2rem]'
-                    : 'top-24 right-12 w-96 rounded-[2rem]'
+                    ? 'inset-0 rounded-none pt-safe'
+                    : 'top-24 right-12 w-96 max-h-[80vh] rounded-[2rem]'
                 } floating-glass p-6 titanium-border shadow-2xl overflow-hidden`}
             >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                            <Cpu className="w-5 h-5 text-blue-500" />
+                        <div className={`${isMobile ? 'w-12 h-12' : 'w-10 h-10'} rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20`}>
+                            <Cpu className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'} text-blue-500`} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-primary tracking-tight">System Settings</h3>
+                            <h3 className={`${isMobile ? 'text-base' : 'text-sm'} font-bold text-primary tracking-tight`}>System Settings</h3>
                             <p className="text-[10px] text-tertiary font-medium uppercase tracking-wider">Configuration</p>
                         </div>
                     </div>
@@ -210,14 +210,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider">Lite</span>
                             </div>
                         )}
-                        <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors group">
+                        <button
+                            onClick={onClose}
+                            className={`${isMobile ? 'w-11 h-11' : 'p-2'} hover:bg-white/5 rounded-full transition-colors group flex items-center justify-center`}
+                        >
                             <X className="w-5 h-5 text-tertiary group-hover:text-primary transition-colors" />
                         </button>
                     </div>
                 </div>
 
                 {/* Scrollable Content Area */}
-                <div className={`${isMobile ? 'flex-1 overflow-y-auto' : ''} space-y-6`}>
+                <div className="flex-1 overflow-y-auto space-y-6 pb-4">
                     {/* Mode Selection */}
                     <div className="flex items-center gap-1 p-1 bg-black/20 rounded-xl border border-white/5">
                         <button

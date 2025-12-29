@@ -231,99 +231,156 @@ export function FlowCanvas() {
                     size={1}
                 />
 
-                {/* Control Panel - Top Right (Unified Toolkit) */}
-                <Panel position="top-right" className={`!m-4 !mr-6 flex flex-col items-end gap-3 z-50 transition-all duration-300 ${focusMode ? '!mt-20' : ''}`}>
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowToolkit(!showToolkit)}
-                            className={`
+                {/* Control Panel - Top Right (Unified Toolkit) - Desktop Only */}
+                {!isMobile && (
+                    <Panel position="top-right" className={`!m-4 !mr-6 flex flex-col items-end gap-3 z-50 transition-all duration-300 ${focusMode ? '!mt-20' : ''}`}>
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowToolkit(!showToolkit)}
+                                className={`
                                 h-10 px-4 flex items-center gap-2 rounded-xl transition-all shadow-lg backdrop-blur-md border outline-none
                                 ${showToolkit
-                                    ? 'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-500/20'
-                                    : 'bg-white/90 dark:bg-surface/90 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-surface'}
+                                        ? 'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-500/20'
+                                        : 'bg-white/90 dark:bg-surface/90 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-surface'}
                             `}
-                        >
-                            <Settings2 className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Toolkit</span>
-                            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showToolkit ? 'rotate-180' : ''}`} />
-                        </button>
+                            >
+                                <Settings2 className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wider">Toolkit</span>
+                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showToolkit ? 'rotate-180' : ''}`} />
+                            </button>
 
-                        {/* Dropdown Menu */}
-                        {showToolkit && (
-                            <div className="absolute top-full right-0 mt-2 w-56 p-2 rounded-2xl bg-white/95 dark:bg-[#0B1221]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+                            {/* Dropdown Menu */}
+                            {showToolkit && (
+                                <div className="absolute top-full right-0 mt-2 w-56 p-2 rounded-2xl bg-white/95 dark:bg-[#0B1221]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
 
-                                {/* Section: Interaction Mode */}
-                                <div className="p-1">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">Mode</span>
-                                    <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-lg">
-                                        <button
-                                            onClick={() => setIsSelectionMode(false)}
-                                            className={`flex flex-col items-center justify-center py-2 rounded-md transition-all ${!isSelectionMode
-                                                ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
-                                                : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
-                                                }`}
-                                        >
-                                            <Hand className="w-4 h-4 mb-1" />
-                                            <span className="text-[9px] font-bold">Pan</span>
-                                        </button>
-                                        <button
-                                            onClick={() => setIsSelectionMode(true)}
-                                            className={`flex flex-col items-center justify-center py-2 rounded-md transition-all ${isSelectionMode
-                                                ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
-                                                : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
-                                                }`}
-                                        >
-                                            <MousePointer2 className="w-4 h-4 mb-1" />
-                                            <span className="text-[9px] font-bold">Select</span>
-                                        </button>
+                                    {/* Section: Interaction Mode */}
+                                    <div className="p-1">
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">Mode</span>
+                                        <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-lg">
+                                            <button
+                                                onClick={() => setIsSelectionMode(false)}
+                                                className={`flex flex-col items-center justify-center py-2 rounded-md transition-all ${!isSelectionMode
+                                                    ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
+                                                    : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
+                                                    }`}
+                                            >
+                                                <Hand className="w-4 h-4 mb-1" />
+                                                <span className="text-[9px] font-bold">Pan</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setIsSelectionMode(true)}
+                                                className={`flex flex-col items-center justify-center py-2 rounded-md transition-all ${isSelectionMode
+                                                    ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
+                                                    : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
+                                                    }`}
+                                            >
+                                                <MousePointer2 className="w-4 h-4 mb-1" />
+                                                <span className="text-[9px] font-bold">Select</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-px bg-slate-200 dark:bg-white/10 mx-2" />
+
+                                    {/* Section: View Controls */}
+                                    <div className="p-1">
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">View</span>
+                                        <div className="flex bg-slate-100 dark:bg-white/5 rounded-lg p-0.5 divide-x divide-slate-200 dark:divide-white/5 border border-slate-200 dark:border-white/5">
+                                            <ToolkitButton icon={Minus} onClick={() => zoomOut()} label="Out" />
+                                            <ToolkitButton icon={Plus} onClick={() => zoomIn()} label="In" />
+                                            <ToolkitButton icon={Maximize} onClick={handleResetView} label="Fit" />
+                                        </div>
+                                    </div>
+
+                                    <div className="h-px bg-slate-200 dark:bg-white/10 mx-2" />
+
+                                    {/* Section: Layout & Overlays */}
+                                    <div className="p-1 space-y-1">
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">Actions</span>
+
+                                        <MenuButton
+                                            icon={Wand2}
+                                            label="Auto Layout"
+                                            active={false}
+                                            onClick={handleAutoLayout}
+                                        />
+
+                                        <MenuButton
+                                            icon={edgeStyle === 'curved' ? Spline : Minus}
+                                            label={edgeStyle === 'curved' ? 'Edge Style: Curved' : 'Edge Style: Straight'}
+                                            iconClass={edgeStyle === 'straight' ? 'rotate-45' : ''}
+                                            active={false}
+                                            onClick={() => setEdgeStyle(edgeStyle === 'curved' ? 'straight' : 'curved')}
+                                        />
+
+                                        <MenuButton
+                                            icon={Map}
+                                            label="MiniMap Overlay"
+                                            active={showMiniMap}
+                                            onClick={() => setShowMiniMap(!showMiniMap)}
+                                        />
                                     </div>
                                 </div>
+                            )}
+                        </div>
 
-                                <div className="h-px bg-slate-200 dark:bg-white/10 mx-2" />
+                    </Panel>
+                )}
 
-                                {/* Section: View Controls */}
-                                <div className="p-1">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">View</span>
-                                    <div className="flex bg-slate-100 dark:bg-white/5 rounded-lg p-0.5 divide-x divide-slate-200 dark:divide-white/5 border border-slate-200 dark:border-white/5">
-                                        <ToolkitButton icon={Minus} onClick={() => zoomOut()} label="Out" />
-                                        <ToolkitButton icon={Plus} onClick={() => zoomIn()} label="In" />
-                                        <ToolkitButton icon={Maximize} onClick={handleResetView} label="Fit" />
-                                    </div>
-                                </div>
+                {/* Mobile Bottom Action Bar */}
+                {isMobile && nodes.length > 0 && !focusMode && (
+                    <Panel position="bottom-center" className="!mb-24 z-50">
+                        <div className="flex items-center gap-1 px-2 py-2 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+                            {/* Zoom Out */}
+                            <button
+                                onClick={() => zoomOut()}
+                                className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95 transition-all"
+                                title="Zoom Out"
+                            >
+                                <Minus className="w-5 h-5" />
+                            </button>
 
-                                <div className="h-px bg-slate-200 dark:bg-white/10 mx-2" />
+                            {/* Zoom In */}
+                            <button
+                                onClick={() => zoomIn()}
+                                className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95 transition-all"
+                                title="Zoom In"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </button>
 
-                                {/* Section: Layout & Overlays */}
-                                <div className="p-1 space-y-1">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">Actions</span>
+                            {/* Fit View */}
+                            <button
+                                onClick={handleResetView}
+                                className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95 transition-all"
+                                title="Fit to View"
+                            >
+                                <Maximize className="w-5 h-5" />
+                            </button>
 
-                                    <MenuButton
-                                        icon={Wand2}
-                                        label="Auto Layout"
-                                        active={false}
-                                        onClick={handleAutoLayout}
-                                    />
+                            {/* Divider */}
+                            <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1" />
 
-                                    <MenuButton
-                                        icon={edgeStyle === 'curved' ? Spline : Minus}
-                                        label={edgeStyle === 'curved' ? 'Edge Style: Curved' : 'Edge Style: Straight'}
-                                        iconClass={edgeStyle === 'straight' ? 'rotate-45' : ''}
-                                        active={false}
-                                        onClick={() => setEdgeStyle(edgeStyle === 'curved' ? 'straight' : 'curved')}
-                                    />
+                            {/* Auto Layout */}
+                            <button
+                                onClick={handleAutoLayout}
+                                className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95 transition-all"
+                                title="Auto Layout"
+                            >
+                                <Wand2 className="w-5 h-5" />
+                            </button>
 
-                                    <MenuButton
-                                        icon={Map}
-                                        label="MiniMap Overlay"
-                                        active={showMiniMap}
-                                        onClick={() => setShowMiniMap(!showMiniMap)}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                </Panel>
+                            {/* Toggle Edge Style */}
+                            <button
+                                onClick={() => setEdgeStyle(edgeStyle === 'curved' ? 'straight' : 'curved')}
+                                className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95 transition-all"
+                                title={edgeStyle === 'curved' ? 'Switch to Straight Edges' : 'Switch to Curved Edges'}
+                            >
+                                {edgeStyle === 'curved' ? <Spline className="w-5 h-5" /> : <Minus className="w-5 h-5 rotate-45" />}
+                            </button>
+                        </div>
+                    </Panel>
+                )}
 
                 {/* MiniMap Container - Bottom Right (Hidden on Mobile) */}
                 <Panel position="bottom-right" className="!m-4 z-40">
@@ -342,8 +399,8 @@ export function FlowCanvas() {
                     )}
                 </Panel>
 
-                {/* Status Indicator - Bottom Left */}
-                {nodes.length > 0 && (
+                {/* Status Indicator - Bottom Left (Hidden on Mobile - shown in header) */}
+                {nodes.length > 0 && !isMobile && (
                     <Panel position="bottom-left" className="!m-6">
                         <div className="flex items-center gap-4 px-4 py-2.5 bg-white/90 dark:bg-surface/90 backdrop-blur-md border border-black/5 dark:border-white/10 rounded-xl shadow-xl">
                             <div className="flex items-center gap-2">

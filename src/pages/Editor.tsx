@@ -165,6 +165,42 @@ export function Editor() {
                                 </div>
                             </div>
                         )}
+
+                        {/* Mobile Empty State - Big Get Started Prompt */}
+                        {nodes.length === 0 && !isLoading && isMobile && !mobileEditorOpen && (
+                            <div className="absolute inset-0 flex items-center justify-center z-10 p-8">
+                                <div className="text-center w-full max-w-xs">
+                                    {/* Icon */}
+                                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-600/30">
+                                        <Sparkles className="w-10 h-10 text-white" />
+                                    </div>
+
+                                    {/* Title */}
+                                    <h2 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white mb-3">
+                                        Create Your Diagram
+                                    </h2>
+
+                                    {/* Description */}
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8">
+                                        Describe your system in plain English, upload an image, or write Mermaid code.
+                                    </p>
+
+                                    {/* Get Started Button */}
+                                    <button
+                                        onClick={() => setMobileEditorOpen(true)}
+                                        className="w-full min-h-[56px] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-base shadow-xl shadow-blue-600/30 active:scale-[0.98] transition-transform"
+                                    >
+                                        <Sparkles className="w-5 h-5" />
+                                        Get Started
+                                    </button>
+
+                                    {/* Hint */}
+                                    <p className="mt-6 text-xs text-slate-400 dark:text-slate-500">
+                                        Or tap the <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white align-middle mx-0.5"><Sparkles className="w-3 h-3" /></span> button anytime
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </main>
 
                     {/* Right Inspector Panel - Sidebar on desktop, Sheet on mobile */}

@@ -417,3 +417,35 @@
 .animate-fade-in {
     animation: fade-in 0.2s ease-out forwards;
 }
+
+/* Slide in from right animation - for mobile menu */
+@keyframes slide-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.animate-slide-in-right {
+    animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Slide out to right animation */
+@keyframes slide-out-right {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+.animate-slide-out-right {
+    animation: slide-out-right 0.25s ease-out forwards;
+}
