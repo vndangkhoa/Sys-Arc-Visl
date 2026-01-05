@@ -25,7 +25,7 @@ export function FlowCanvas() {
     const {
         nodes, edges, onNodesChange, onEdgesChange, onConnect,
         setSelectedNode, edgeStyle, setEdgeStyle, theme, activeFilters,
-        setNodes, setEdges, focusMode, viewMode, setViewMode,
+        setNodes, setEdges, focusMode, setViewMode,
         setMermaidCode, setInputDescription, setSourceCode
     } = useFlowStore();
     const { isMobile } = useMobileDetect();
