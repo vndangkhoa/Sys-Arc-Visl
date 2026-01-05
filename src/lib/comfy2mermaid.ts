@@ -1,4 +1,4 @@
-import mermaid from 'mermaid';
+// import mermaid from 'mermaid';
 
 // --- Types ---
 export interface ComfyNode {
@@ -133,7 +133,7 @@ function calculateContrastRatio(rgb1: [number, number, number], rgb2: [number, n
   return (Math.max(lum1, lum2) + 0.05) / (Math.min(lum1, lum2) + 0.05);
 }
 
-function adjustTextColorForBackground(styleString: string): string {
+export function adjustTextColorForBackground(styleString: string): string {
   if (!styleString) return styleString;
   const parts = styleString.split(',').map(p => p.trim()).filter(Boolean);
 

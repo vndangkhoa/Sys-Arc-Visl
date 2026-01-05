@@ -97,6 +97,7 @@ export function useFlowStore() {
         setMermaidCode: ui.setMermaidCode,
         clearInputs: ui.clearInputs,
         toggleFilter: ui.toggleFilter,
+        setActiveFilters: ui.setActiveFilters,
         setLoading: ui.setLoading,
         setError: ui.setError,
 
