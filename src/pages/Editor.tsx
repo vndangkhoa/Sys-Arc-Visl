@@ -1,6 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import { InputPanel } from '../components/InputPanel';
 import { FlowCanvas } from '../components/FlowCanvas';
+import { MermaidStaticViewer } from '../components/MermaidStaticViewer';
 import { NodeDetailsPanel } from '../components/NodeDetailsPanel';
 import InteractiveLegend from '../components/InteractiveLegend';
 import OnboardingTour from '../components/OnboardingTour';
@@ -17,7 +18,7 @@ export function Editor() {
     // Enable Programmatic API
     useDiagramAPI();
 
-    const { nodes, isLoading, leftPanelOpen, setLeftPanelOpen, rightPanelOpen, setRightPanelOpen, focusMode, setFocusMode, mobileEditorOpen, setMobileEditorOpen } = useFlowStore();
+    const { nodes, isLoading, leftPanelOpen, setLeftPanelOpen, rightPanelOpen, setRightPanelOpen, focusMode, setFocusMode, mobileEditorOpen, setMobileEditorOpen, viewMode } = useFlowStore();
     const { isMobile } = useMobileDetect();
     const [sidebarWidth, setSidebarWidth] = useState(384); // Default w-96
     const isResizing = useRef(false);
@@ -130,7 +131,11 @@ export function Editor() {
 
                     {/* Panoramic Canvas */}
                     <main className="flex-1 relative overflow-hidden">
-                        <FlowCanvas />
+                        {viewMode === 'static' ? (
+                            <MermaidStaticViewer />
+                        ) : (
+                            <FlowCanvas />
+                        )}
 
                         <InteractiveLegend />
                         <OnboardingTour />

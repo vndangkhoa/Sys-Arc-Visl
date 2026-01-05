@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import { ImageUpload } from './ImageUpload';
 import { CodeEditor } from './CodeEditor';
-import { Image, Code, MessageSquare, Loader2, Zap } from 'lucide-react';
+import { ComfyImportPanel } from './editor/ComfyImportPanel'; // Import new panel
+import { Image, Code, MessageSquare, Loader2, Zap, Workflow } from 'lucide-react'; // Add Workflow icon
 import { useFlowStore } from '../store';
 import { interpretText } from '../lib/aiService';
 import { parseMermaid } from '../lib/mermaidParser';
 import { getLayoutedElements } from '../lib/layoutEngine';
 
-type Tab = 'image' | 'code' | 'describe';
+type Tab = 'image' | 'code' | 'describe' | 'comfy'; // Add 'comfy' tab type
 
 export function InputPanel() {
     const {
@@ -95,16 +96,17 @@ export function InputPanel() {
     }, [description, ollamaUrl, modelName, aiMode, onlineProvider, apiKey, generationComplexity, setNodes, setEdges, setLoading, setError, setSourceCode, setMermaidCode, saveDiagram]);
 
     const tabs = [
-        { id: 'image' as Tab, icon: Image, label: 'Upload' },
+        { id: 'describe' as Tab, icon: MessageSquare, label: 'Describe' }, // Moved Describe first as primary
         { id: 'code' as Tab, icon: Code, label: 'Code' },
-        { id: 'describe' as Tab, icon: MessageSquare, label: 'Describe' },
+        { id: 'comfy' as Tab, icon: Workflow, label: 'ComfyUI' }, // New Tab
+        { id: 'image' as Tab, icon: Image, label: 'Upload' },
     ];
 
     return (
         <div className="h-full flex flex-col">
             {/* Floating Tabs */}
             <div className="px-4 pt-6 pb-2">
-                <div className="flex bg-slate-100 dark:bg-black/20 p-1 rounded-full border border-black/5 dark:border-white/5 mx-auto max-w-[280px]">
+                <div className="flex bg-slate-100 dark:bg-black/20 p-1 rounded-full border border-black/5 dark:border-white/5 mx-auto w-full">
                     {tabs.map(tab => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
@@ -121,7 +123,7 @@ export function InputPanel() {
                                 )}
                                 <div className="relative flex items-center gap-2 z-10">
                                     <Icon className="w-3.5 h-3.5" />
-                                    <span className="text-[10px] font-black uppercase tracking-wider">{tab.label}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">{tab.label}</span>
                                 </div>
                             </button>
                         );
@@ -129,7 +131,7 @@ export function InputPanel() {
                 </div>
             </div>
 
-            {/* Complexity Toggle */}
+            {/* Complexity Toggle - Only for text intent flow */}
             {(activeTab === 'image' || activeTab === 'describe') && (
                 <div className="px-4 py-3">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-1 mb-2 block">Diagram Complexity</label>
@@ -164,13 +166,14 @@ export function InputPanel() {
             <div className="flex-1 px-4 pb-6 overflow-y-auto hide-scrollbar">
                 {activeTab === 'image' && <ImageUpload />}
                 {activeTab === 'code' && <CodeEditor />}
+                {activeTab === 'comfy' && <ComfyImportPanel />}
+
                 {activeTab === 'describe' && (
                     <div className="h-full flex flex-col animate-slide-up">
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Describe your diagram in natural language...
-
 Example: Create a user registration flow with login, verification, and dashboard access"
                             className="w-full flex-1 p-5 rounded-2xl bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 text-sm resize-none outline-none focus:border-blue-500/40 focus:ring-2 focus:ring-blue-500/20 transition-all font-sans leading-relaxed placeholder:text-slate-400 dark:placeholder:text-slate-600"
                         />

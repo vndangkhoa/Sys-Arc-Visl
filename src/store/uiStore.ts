@@ -51,9 +51,13 @@ interface UIState {
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
     clearError: () => void;
+
+    // View Mode
+    viewMode: 'interactive' | 'static';
+    setViewMode: (mode: 'interactive' | 'static') => void;
 }
 
-const DEFAULT_FILTERS = ['filter-client', 'filter-server', 'filter-db', 'filter-other', 'filter-group'];
+const DEFAULT_FILTERS = ['filter-client', 'filter-server', 'filter-db', 'filter-other', 'filter-group', 'filter-edge'];
 
 export const useUIStore = create<UIState>()((set, get) => ({
     // Initial state
@@ -108,4 +112,8 @@ export const useUIStore = create<UIState>()((set, get) => ({
     setLoading: (isLoading) => set({ isLoading }),
     setError: (error) => set({ error }),
     clearError: () => set({ error: null }),
+
+    // View Mode actions
+    viewMode: 'interactive',
+    setViewMode: (viewMode) => set({ viewMode }),
 }));

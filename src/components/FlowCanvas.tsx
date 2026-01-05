@@ -14,7 +14,7 @@ import { nodeTypes } from './nodes/CustomNodes';
 import { edgeTypes, EdgeDefs } from './edges/AnimatedEdge';
 import {
     Spline, Minus, Plus, Maximize, Map, Wand2,
-    Hand, MousePointer2, Settings2, ChevronDown
+    Hand, MousePointer2, Settings2, ChevronDown, FileImage, Trash2
 } from 'lucide-react';
 import { getLayoutedElements } from '../lib/layoutEngine';
 
@@ -25,7 +25,7 @@ export function FlowCanvas() {
     const {
         nodes, edges, onNodesChange, onEdgesChange, onConnect,
         setSelectedNode, edgeStyle, setEdgeStyle, theme, activeFilters,
-        setNodes, setEdges, focusMode
+        setNodes, setEdges, focusMode, viewMode, setViewMode
     } = useFlowStore();
     const { isMobile } = useMobileDetect();
     const { zoomIn, zoomOut, fitView } = useReactFlow();
@@ -110,9 +110,104 @@ export function FlowCanvas() {
                 }
             }
 
+            // Check for Dynamic Label Filter
+            const label = (node.data?.label as string || '').trim();
+            const dynamicFilterId = `dyn-${label}`;
+
+            // Logic:
+            // 1. If a dynamic filter active state exists for this label (meaning the label is "known" effectively), check it.
+            //    However, activeFilters is a list of IDs.
+            //    Wait, we don't know if the filter 'exists' here easily without scanning all nodes or passing `dynamicFilters` prop.
+            //    But we know if `dyn-` version is in `activeFilters`, it is explicitly ON.
+            //    If `dyn-` version is NOT in `activeFilters`, is it implicitly OFF?
+            //    In `InteractiveLegend`, we auto-add new dynamic labels to `activeFilters`.
+            //    So if it IS a known dynamic label, it SHOULD be in `activeFilters` to be visible.
+            //    But `FlowCanvas` doesn't know if it's a "known" dynamic label or just some random text.
+            //    Heuristic: If the label is short enough to trigger a dynamic filter (length < 30),
+            //    then we assume it is governed by the dynamic filter system.
+
+            let isVisible = false;
+
+            if (label.length < 30 && label.length > 0) {
+                // It is a dynamic filter candidate.
+                // Visibility is determined by presence in activeFilters.
+                // Note: InteractiveLegend adds them asynchronously. There might be a split second where it's hidden before appearing.
+                // To prevent flickering: maybe default to TRUE if activeFilters doesn't contain ANY dynamic filters yet? No.
+                // We will trust the store.
+
+                // If the user has disabled the category (e.g. 'Server'), should 'KSampler' still show?
+                // User request imply: "specific node that appear".
+                // Usually specific overrides general.
+
+                const isDynamicActive = activeFilters.includes(dynamicFilterId);
+                if (isDynamicActive) {
+                    isVisible = true;
+                } else {
+                    // CAUTION: If it's NOT in activeFilters, it could mean:
+                    // A) InteractiveLegend hasn't added it yet (it's new) -> Should show?
+                    // B) User explicitly turned it off -> Should hide.
+
+                    // Problem: We can't distinguish A from B easily here.
+                    // But we know InteractiveLegend adds them immediately on mount/update.
+                    // A flash of invisibility is possible.
+                    // BUT, we can fallback to Category visibility if Dynamic visibility is "off" (missing)?
+                    // No, if I turn off "KSampler", I want it gone.
+
+                    // Let's assume if the label is "Dynamic-able", strict filtering applies.
+                    // But if activeFilters doesn't have it, it's hidden.
+
+                    // Fallback check:
+                    // Is the CATEGORY also required?
+                    // If I have "KSampler" (Other), and I turn off "Other", "KSampler" should probably hide too?
+                    // Composite logic: Visible if (Category is Active) AND (Dynamic is Active or Not Applicable).
+
+                    // BUT, dynamic filters are added to the list.
+                    // If I toggle "KSampler", it removes from list.
+                    // So we must check dynamic ID.
+
+                    // If we enforce BOTH, then unchecking "Other" hides everything.
+                    // If we enforce EITHER, then unchecking "Other" keeps KSampler.
+
+                    // Let's go with: Dynamic Filter OVERRIDES Category if present?
+                    // Or Dynamic Filter is an AND condition?
+                    // Usually: Visible = CategoryActive && (DynamicActive if exists).
+
+                    // Let's try:
+                    // If `activeFilters` has ANY `dyn-`... implied system is active.
+                }
+
+                // REVISED LOGIC:
+                // We check if `dyn-${label}` is in activeFilters. 
+                // If we find ANY `dyn-` filters in `activeFilters` at all, we assume system is initialized.
+                // If so, we stick to strict checking.
+
+                const anyDynamicActive = activeFilters.some(f => f.startsWith('dyn-'));
+
+                if (!anyDynamicActive) {
+                    // System maybe not ready or no dynamic filters active.
+                    // Fallback to category.
+                    isVisible = activeFilters.includes(category);
+                } else {
+                    // System has dynamic filters.
+                    // If this specific dynamic filter is present, show.
+                    // Also check category?
+                    // Let's prioritize Dynamic Filter visibility.
+                    if (activeFilters.includes(dynamicFilterId)) {
+                        isVisible = true;
+                    } else {
+                        // Dynamic filter is OFF.
+                        isVisible = false;
+                    }
+                }
+
+            } else {
+                // Not a dynamic label situation, standard category
+                isVisible = activeFilters.includes(category);
+            }
+
             return {
                 ...node,
-                hidden: !activeFilters.includes(category)
+                hidden: !isVisible
             };
         });
     }, [nodes, activeFilters]);
@@ -146,14 +241,18 @@ export function FlowCanvas() {
         });
     }, [edges, edgeStyle]);
 
-    // Filter edges to only show connections between visible nodes
+    // Filter edges to only show connections between visible nodes AND if edges are enabled
     const filteredEdges = useMemo(() => {
+        // Check if edges are globally enabled via filter
+        const edgesEnabled = activeFilters.includes('filter-edge');
+        if (!edgesEnabled) return [];
+
         const visibleNodeIds = new Set(filteredNodes.filter(n => !n.hidden).map(n => n.id));
         return styledEdges.map(edge => ({
             ...edge,
             hidden: !visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target)
         }));
-    }, [styledEdges, filteredNodes]);
+    }, [styledEdges, filteredNodes, activeFilters]);
 
     // Node click handler - bidirectional highlighting
     const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
@@ -234,96 +333,121 @@ export function FlowCanvas() {
                 {/* Control Panel - Top Right (Unified Toolkit) - Desktop Only */}
                 {!isMobile && (
                     <Panel position="top-right" className={`!m-4 !mr-6 flex flex-col items-end gap-3 z-50 transition-all duration-300 ${focusMode ? '!mt-20' : ''}`}>
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowToolkit(!showToolkit)}
-                                className={`
-                                h-10 px-4 flex items-center gap-2 rounded-xl transition-all shadow-lg backdrop-blur-md border outline-none
-                                ${showToolkit
-                                        ? 'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-500/20'
-                                        : 'bg-white/90 dark:bg-surface/90 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-surface'}
-                            `}
-                            >
-                                <Settings2 className="w-4 h-4" />
-                                <span className="text-xs font-bold uppercase tracking-wider">Toolkit</span>
-                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showToolkit ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {/* Dropdown Menu */}
-                            {showToolkit && (
-                                <div className="absolute top-full right-0 mt-2 w-56 p-2 rounded-2xl bg-white/95 dark:bg-[#0B1221]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
-
-                                    {/* Section: Interaction Mode */}
-                                    <div className="p-1">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">Mode</span>
-                                        <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-lg">
-                                            <button
-                                                onClick={() => setIsSelectionMode(false)}
-                                                className={`flex flex-col items-center justify-center py-2 rounded-md transition-all ${!isSelectionMode
-                                                    ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
-                                                    : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
-                                                    }`}
-                                            >
-                                                <Hand className="w-4 h-4 mb-1" />
-                                                <span className="text-[9px] font-bold">Pan</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setIsSelectionMode(true)}
-                                                className={`flex flex-col items-center justify-center py-2 rounded-md transition-all ${isSelectionMode
-                                                    ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
-                                                    : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
-                                                    }`}
-                                            >
-                                                <MousePointer2 className="w-4 h-4 mb-1" />
-                                                <span className="text-[9px] font-bold">Select</span>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-px bg-slate-200 dark:bg-white/10 mx-2" />
-
-                                    {/* Section: View Controls */}
-                                    <div className="p-1">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">View</span>
-                                        <div className="flex bg-slate-100 dark:bg-white/5 rounded-lg p-0.5 divide-x divide-slate-200 dark:divide-white/5 border border-slate-200 dark:border-white/5">
-                                            <ToolkitButton icon={Minus} onClick={() => zoomOut()} label="Out" />
-                                            <ToolkitButton icon={Plus} onClick={() => zoomIn()} label="In" />
-                                            <ToolkitButton icon={Maximize} onClick={handleResetView} label="Fit" />
-                                        </div>
-                                    </div>
-
-                                    <div className="h-px bg-slate-200 dark:bg-white/10 mx-2" />
-
-                                    {/* Section: Layout & Overlays */}
-                                    <div className="p-1 space-y-1">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">Actions</span>
-
-                                        <MenuButton
-                                            icon={Wand2}
-                                            label="Auto Layout"
-                                            active={false}
-                                            onClick={handleAutoLayout}
-                                        />
-
-                                        <MenuButton
-                                            icon={edgeStyle === 'curved' ? Spline : Minus}
-                                            label={edgeStyle === 'curved' ? 'Edge Style: Curved' : 'Edge Style: Straight'}
-                                            iconClass={edgeStyle === 'straight' ? 'rotate-45' : ''}
-                                            active={false}
-                                            onClick={() => setEdgeStyle(edgeStyle === 'curved' ? 'straight' : 'curved')}
-                                        />
-
-                                        <MenuButton
-                                            icon={Map}
-                                            label="MiniMap Overlay"
-                                            active={showMiniMap}
-                                            onClick={() => setShowMiniMap(!showMiniMap)}
-                                        />
-                                    </div>
-                                </div>
+                        <div className="flex items-center gap-2">
+                            {/* Clear Dashboard Button */}
+                            {nodes.length > 0 && (
+                                <button
+                                    onClick={() => {
+                                        setNodes([]);
+                                        setEdges([]);
+                                        useFlowStore.getState().setMermaidCode('');
+                                        useFlowStore.getState().setDescription('');
+                                        useFlowStore.getState().setSourceCode('');
+                                    }}
+                                    className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/90 dark:bg-surface/90 backdrop-blur-md border border-red-200 dark:border-red-900/30 text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 shadow-sm transition-all"
+                                    title="Clear Dashboard"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
                             )}
-                        </div>
 
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowToolkit(!showToolkit)}
+                                    className={`
+                                    h-10 px-4 flex items-center gap-2 rounded-xl transition-all shadow-lg backdrop-blur-md border outline-none
+                                    ${showToolkit
+                                            ? 'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-500/20'
+                                            : 'bg-white/90 dark:bg-surface/90 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-surface'}
+                                `}
+                                >
+                                    <Settings2 className="w-4 h-4" />
+                                    <span className="text-xs font-bold uppercase tracking-wider">Toolkit</span>
+                                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showToolkit ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {/* Dropdown Menu */}
+                                {showToolkit && (
+                                    <div className="absolute top-full right-0 mt-2 w-56 p-2 rounded-2xl bg-white/95 dark:bg-[#0B1221]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+
+                                        {/* Section: Interaction Mode */}
+                                        <div className="p-1">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">Mode</span>
+                                            <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-lg">
+                                                <button
+                                                    onClick={() => setIsSelectionMode(false)}
+                                                    className={`flex flex-col items-center justify-center py-2 rounded-md transition-all ${!isSelectionMode
+                                                        ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
+                                                        : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
+                                                        }`}
+                                                >
+                                                    <Hand className="w-4 h-4 mb-1" />
+                                                    <span className="text-[9px] font-bold">Pan</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsSelectionMode(true)}
+                                                    className={`flex flex-col items-center justify-center py-2 rounded-md transition-all ${isSelectionMode
+                                                        ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
+                                                        : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'
+                                                        }`}
+                                                >
+                                                    <MousePointer2 className="w-4 h-4 mb-1" />
+                                                    <span className="text-[9px] font-bold">Select</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="h-px bg-slate-200 dark:bg-white/10 mx-2" />
+
+                                        {/* Section: View Controls */}
+                                        <div className="p-1">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">View</span>
+                                            <div className="flex bg-slate-100 dark:bg-white/5 rounded-lg p-0.5 divide-x divide-slate-200 dark:divide-white/5 border border-slate-200 dark:border-white/5">
+                                                <ToolkitButton icon={Minus} onClick={() => zoomOut()} label="Out" />
+                                                <ToolkitButton icon={Plus} onClick={() => zoomIn()} label="In" />
+                                                <ToolkitButton icon={Maximize} onClick={handleResetView} label="Fit" />
+                                            </div>
+                                        </div>
+
+                                        <div className="h-px bg-slate-200 dark:bg-white/10 mx-2" />
+
+                                        {/* Section: Layout & Overlays */}
+                                        <div className="p-1 space-y-1">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-2 mb-1 block">Actions</span>
+
+                                            <MenuButton
+                                                icon={Wand2}
+                                                label="Auto Layout"
+                                                active={false}
+                                                onClick={handleAutoLayout}
+                                            />
+
+                                            <MenuButton
+                                                icon={edgeStyle === 'curved' ? Spline : Minus}
+                                                label={edgeStyle === 'curved' ? 'Edge Style: Curved' : 'Edge Style: Straight'}
+                                                iconClass={edgeStyle === 'straight' ? 'rotate-45' : ''}
+                                                active={false}
+                                                onClick={() => setEdgeStyle(edgeStyle === 'curved' ? 'straight' : 'curved')}
+                                            />
+
+                                            <MenuButton
+                                                icon={Map}
+                                                label="MiniMap Overlay"
+                                                active={showMiniMap}
+                                                onClick={() => setShowMiniMap(!showMiniMap)}
+                                            />
+
+                                            <MenuButton
+                                                icon={FileImage}
+                                                label="Static View"
+                                                active={false}
+                                                onClick={() => setViewMode('static')}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </Panel>
                 )}
 

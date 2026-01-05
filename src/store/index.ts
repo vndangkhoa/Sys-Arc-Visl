@@ -100,6 +100,10 @@ export function useFlowStore() {
         setLoading: ui.setLoading,
         setError: ui.setError,
 
+        // View Mode
+        viewMode: ui.viewMode,
+        setViewMode: ui.setViewMode,
+
         // Combined reset
         reset: () => {
             diagram.reset();
