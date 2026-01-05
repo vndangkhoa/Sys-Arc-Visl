@@ -14,7 +14,7 @@ interface UIState {
 
     // Input Panel persistence
     inputDescription: string;
-    inputActiveTab: 'image' | 'code' | 'describe';
+    inputActiveTab: 'image' | 'code' | 'describe' | 'comfy';
     inputImageUrl: string | null;
     mermaidCode: string;
 
@@ -37,7 +37,7 @@ interface UIState {
 
     // Input Panel actions
     setInputDescription: (description: string) => void;
-    setInputActiveTab: (tab: 'image' | 'code' | 'describe') => void;
+    setInputActiveTab: (tab: 'image' | 'code' | 'describe' | 'comfy') => void;
     setInputImageUrl: (url: string | null) => void;
     setMermaidCode: (code: string) => void;
     clearInputs: () => void;
