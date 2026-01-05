@@ -25,7 +25,8 @@ export function FlowCanvas() {
     const {
         nodes, edges, onNodesChange, onEdgesChange, onConnect,
         setSelectedNode, edgeStyle, setEdgeStyle, theme, activeFilters,
-        setNodes, setEdges, focusMode, viewMode, setViewMode
+        setNodes, setEdges, focusMode, viewMode, setViewMode,
+        setMermaidCode, setInputDescription, setSourceCode
     } = useFlowStore();
     const { isMobile } = useMobileDetect();
     const { zoomIn, zoomOut, fitView } = useReactFlow();
@@ -340,9 +341,9 @@ export function FlowCanvas() {
                                     onClick={() => {
                                         setNodes([]);
                                         setEdges([]);
-                                        useFlowStore.getState().setMermaidCode('');
-                                        useFlowStore.getState().setDescription('');
-                                        useFlowStore.getState().setSourceCode('');
+                                        setMermaidCode('');
+                                        setInputDescription('');
+                                        setSourceCode('');
                                     }}
                                     className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/90 dark:bg-surface/90 backdrop-blur-md border border-red-200 dark:border-red-900/30 text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 shadow-sm transition-all"
                                     title="Clear Dashboard"
